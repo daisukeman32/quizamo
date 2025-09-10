@@ -1,0 +1,13 @@
+# 画像フォルダ
+画像フォルダ/
+完成フォルダ/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo

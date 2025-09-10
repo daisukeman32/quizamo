@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>モザイクツール</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1200px;
+            width: 100%;
+            padding: 30px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .indicator {
+            font-size: 18px;
+            color: #666;
+            font-weight: bold;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .canvas-container {
+            flex: 1;
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 500px;
+            position: relative;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 500px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: crosshair;
+            background: white;
+        }
+
+        .controls {
+            width: 300px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .value-display {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:hover {
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(17, 153, 142, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .navigation {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .navigation button {
+            width: 120px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-select-btn {
+            width: 100%;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 モザイクツール</h1>
+            <div class="indicator" id="indicator">画像を選択してください</div>
+        </div>
+
+        <div class="controls" style="margin-bottom: 20px;">
+            <button class="file-select-btn" onclick="document.getElementById('fileInput').click()">
+                📁 画像フォルダを選択
+            </button>
+            <input type="file" id="fileInput" webkitdirectory directory multiple accept="image/*">
+        </div>
+
+        <div class="main-content">
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>画像を読み込み中...</p>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>筆のサイズ</label>
+                    <div class="slider-container">
+                        <input type="range" id="brushSize" min="10" max="100" value="30">
+                        <span class="value-display" id="brushSizeValue">30</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>モザイクの粗さ</label>
+                    <div class="slider-container">
+                        <input type="range" id="mosaicSize" min="5" max="50" value="15">
+                        <span class="value-display" id="mosaicSizeValue">15</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>モザイクの種類</label>
+                    <select id="mosaicType">
+                        <option value="pixelate">ピクセル（ドット）</option>
+                        <option value="blur">ぼかし（ガウス）</option>
+                        <option value="mosaic">モザイクタイル</option>
+                    </select>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-secondary" id="undoBtn">↶ 元に戻す</button>
+                    <button class="btn-secondary" id="redoBtn">↷ やり直す</button>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-danger" id="clearBtn">🗑️ クリア</button>
+                    <button class="btn-success" id="saveBtn">💾 保存</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <button class="btn-primary" id="prevBtn">← 戻る</button>
+            <button class="btn-primary" id="nextBtn">次へ →</button>
+        </div>
+
+        <div class="status-message" id="statusMessage"></div>
+    </div>
+
+    <script>
+        class MosaicTool {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.images = [];
+                this.currentIndex = 0;
+                this.currentImage = null;
+                this.originalImageData = null;
+                this.isDrawing = false;
+                this.history = [];
+                this.historyStep = -1;
+                this.savedImages = new Set();
+                
+                this.brushSize = 30;
+                this.mosaicSize = 15;
+                this.mosaicType = 'pixelate';
+                
+                this.initializeEventListeners();
+            }
+
+            initializeEventListeners() {
+                // File input
+                document.getElementById('fileInput').addEventListener('change', (e) => this.loadImages(e));
+                
+                // Controls
+                document.getElementById('brushSize').addEventListener('input', (e) => {
+                    this.brushSize = parseInt(e.target.value);
+                    document.getElementById('brushSizeValue').textContent = this.brushSize;
+                });
+                
+                document.getElementById('mosaicSize').addEventListener('input', (e) => {
+                    this.mosaicSize = parseInt(e.target.value);
+                    document.getElementById('mosaicSizeValue').textContent = this.mosaicSize;
+                });
+                
+                document.getElementById('mosaicType').addEventListener('change', (e) => {
+                    this.mosaicType = e.target.value;
+                });
+                
+                // Canvas events
+                this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
+                this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+                this.canvas.addEventListener('mouseup', () => this.stopDrawing());
+                this.canvas.addEventListener('mouseleave', () => this.stopDrawing());
+                
+                // Touch events for mobile
+                this.canvas.addEventListener('touchstart', (e) => this.startDrawing(e.touches[0]));
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    this.draw(e.touches[0]);
+                });
+                this.canvas.addEventListener('touchend', () => this.stopDrawing());
+                
+                // Buttons
+                document.getElementById('undoBtn').addEventListener('click', () => this.undo());
+                document.getElementById('redoBtn').addEventListener('click', () => this.redo());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clear());
+                document.getElementById('saveBtn').addEventListener('click', () => this.save());
+                document.getElementById('prevBtn').addEventListener('click', () => this.previousImage());
+                document.getElementById('nextBtn').addEventListener('click', () => this.nextImage());
+            }
+
+            async loadImages(event) {
+                const files = Array.from(event.target.files).filter(file => 
+                    file.type.startsWith('image/')
+                );
+                
+                if (files.length === 0) {
+                    this.showStatus('画像ファイルが見つかりませんでした', 'error');
+                    return;
+                }
+                
+                document.getElementById('loading').style.display = 'block';
+                this.images = [];
+                
+                for (const file of files) {
+                    const img = new Image();
+                    const url = URL.createObjectURL(file);
+                    
+                    await new Promise((resolve) => {
+                        img.onload = () => {
+                            this.images.push({
+                                img: img,
+                                url: url,
+                                name: file.name
+                            });
+                            resolve();
+                        };
+                        img.src = url;
+                    });
+                }
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (this.images.length > 0) {
+                    this.currentIndex = 0;
+                    this.displayImage();
+                    this.showStatus(`${this.images.length}枚の画像を読み込みました`, 'success');
+                }
+            }
+
+            displayImage() {
+                if (this.images.length === 0) return;
+                
+                const imageData = this.images[this.currentIndex];
+                this.currentImage = imageData.img;
+                
+                // Canvas size adjustment
+                const maxWidth = 800;
+                const maxHeight = 500;
+                let width = this.currentImage.width;
+                let height = this.currentImage.height;
+                
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                
+                if (height > maxHeight) {
+                    width = (maxHeight / height) * width;
+                    height = maxHeight;
+                }
+                
+                this.canvas.width = width;
+                this.canvas.height = height;
+                
+                this.ctx.drawImage(this.currentImage, 0, 0, width, height);
+                this.originalImageData = this.ctx.getImageData(0, 0, width, height);
+                
+                // Reset history for new image
+                this.history = [this.ctx.getImageData(0, 0, width, height)];
+                this.historyStep = 0;
+                
+                // Update indicator
+                document.getElementById('indicator').textContent = 
+                    `${this.currentIndex + 1} / ${this.images.length} ${this.savedImages.has(this.currentIndex) ? '✅' : ''}`;
+                
+                // Update button states
+                document.getElementById('prevBtn').disabled = this.currentIndex === 0;
+                document.getElementById('nextBtn').disabled = this.currentIndex === this.images.length - 1;
+            }
+
+            startDrawing(e) {
+                this.isDrawing = true;
+                this.draw(e);
+            }
+
+            draw(e) {
+                if (!this.isDrawing) return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+                const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+                
+                this.applyMosaic(x, y);
+            }
+
+            stopDrawing() {
+                if (this.isDrawing) {
+                    this.isDrawing = false;
+                    this.saveHistory();
+                }
+            }
+
+            applyMosaic(centerX, centerY) {
+                const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                const data = imageData.data;
+                const radius = this.brushSize / 2;
+                
+                for (let y = Math.max(0, centerY - radius); y < Math.min(this.canvas.height, centerY + radius); y++) {
+                    for (let x = Math.max(0, centerX - radius); x < Math.min(this.canvas.width, centerX + radius); x++) {
+                        const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+                        
+                        if (distance <= radius) {
+                            if (this.mosaicType === 'pixelate') {
+                                this.pixelatePixel(data, Math.floor(x), Math.floor(y), imageData.width);
+                            } else if (this.mosaicType === 'blur') {
+                                this.blurPixel(data, Math.floor(x), Math.floor(y), imageData.width, imageData.height);
+                            } else if (this.mosaicType === 'mosaic') {
+                                this.mosaicPixel(data, Math.floor(x), Math.floor(y), imageData.width);
+                            }
+                        }
+                    }
+                }
+                
+                this.ctx.putImageData(imageData, 0, 0);
+            }
+
+            pixelatePixel(data, x, y, width) {
+                const blockSize = this.mosaicSize;
+                const blockX = Math.floor(x / blockSize) * blockSize;
+                const blockY = Math.floor(y / blockSize) * blockSize;
+                
+                let r = 0, g = 0, b = 0, count = 0;
+                
+                for (let by = blockY; by < Math.min(blockY + blockSize, this.canvas.height); by++) {
+                    for (let bx = blockX; bx < Math.min(blockX + blockSize, this.canvas.width); bx++) {
+                        const idx = (by * width + bx) * 4;
+                        r += data[idx];
+                        g += data[idx + 1];
+                        b += data[idx + 2];
+                        count++;
+                    }
+                }
+                
+                if (count > 0) {
+                    r = Math.floor(r / count);
+                    g = Math.floor(g / count);
+                    b = Math.floor(b / count);
+                    
+                    const idx = (y * width + x) * 4;
+                    data[idx] = r;
+                    data[idx + 1] = g;
+                    data[idx + 2] = b;
+                }
+            }
+
+            blurPixel(data, x, y, width, height) {
+                const blurRadius = Math.floor(this.mosaicSize / 3);
+                let r = 0, g = 0, b = 0, count = 0;
+                
+                for (let dy = -blurRadius; dy <= blurRadius; dy++) {
+                    for (let dx = -blurRadius; dx <= blurRadius; dx++) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            const idx = (ny * width + nx) * 4;
+                            const weight = 1 - (Math.abs(dx) + Math.abs(dy)) / (2 * blurRadius);
+                            r += data[idx] * weight;
+                            g += data[idx + 1] * weight;
+                            b += data[idx + 2] * weight;
+                            count += weight;
+                        }
+                    }
+                }
+                
+                if (count > 0) {
+                    const idx = (y * width + x) * 4;
+                    data[idx] = Math.floor(r / count);
+                    data[idx + 1] = Math.floor(g / count);
+                    data[idx + 2] = Math.floor(b / count);
+                }
+            }
+
+            mosaicPixel(data, x, y, width) {
+                const tileSize = this.mosaicSize;
+                const tileX = Math.floor(x / tileSize) * tileSize;
+                const tileY = Math.floor(y / tileSize) * tileSize;
+                
+                // Calculate average color for the tile
+                let r = 0, g = 0, b = 0, count = 0;
+                
+                for (let ty = tileY; ty < Math.min(tileY + tileSize, this.canvas.height); ty++) {
+                    for (let tx = tileX; tx < Math.min(tileX + tileSize, this.canvas.width); tx++) {
+                        const idx = (ty * width + tx) * 4;
+                        r += data[idx];
+                        g += data[idx + 1];
+                        b += data[idx + 2];
+                        count++;
+                    }
+                }
+                
+                if (count > 0) {
+                    r = Math.floor(r / count);
+                    g = Math.floor(g / count);
+                    b = Math.floor(b / count);
+                    
+                    // Add some variation for mosaic effect
+                    const variation = 20;
+                    r = Math.max(0, Math.min(255, r + (Math.random() - 0.5) * variation));
+                    g = Math.max(0, Math.min(255, g + (Math.random() - 0.5) * variation));
+                    b = Math.max(0, Math.min(255, b + (Math.random() - 0.5) * variation));
+                    
+                    const idx = (y * width + x) * 4;
+                    data[idx] = r;
+                    data[idx + 1] = g;
+                    data[idx + 2] = b;
+                }
+            }
+
+            saveHistory() {
+                this.historyStep++;
+                if (this.historyStep < this.history.length) {
+                    this.history.length = this.historyStep;
+                }
+                this.history.push(this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height));
+                
+                // Limit history to 50 steps
+                if (this.history.length > 50) {
+                    this.history.shift();
+                    this.historyStep--;
+                }
+            }
+
+            undo() {
+                if (this.historyStep > 0) {
+                    this.historyStep--;
+                    const imageData = this.history[this.historyStep];
+                    this.ctx.putImageData(imageData, 0, 0);
+                }
+            }
+
+            redo() {
+                if (this.historyStep < this.history.length - 1) {
+                    this.historyStep++;
+                    const imageData = this.history[this.historyStep];
+                    this.ctx.putImageData(imageData, 0, 0);
+                }
+            }
+
+            clear() {
+                if (this.originalImageData) {
+                    this.ctx.putImageData(this.originalImageData, 0, 0);
+                    this.saveHistory();
+                }
+            }
+
+            async save() {
+                if (this.images.length === 0) return;
+                
+                try {
+                    // Convert canvas to blob
+                    const blob = await new Promise(resolve => {
+                        this.canvas.toBlob(resolve, 'image/png');
+                    });
+                    
+                    // Create download link
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const originalName = this.images[this.currentIndex].name;
+                    const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
+                    a.href = url;
+                    a.download = `mosaic_${nameWithoutExt}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    // Mark as saved
+                    this.savedImages.add(this.currentIndex);
+                    document.getElementById('indicator').textContent = 
+                        `${this.currentIndex + 1} / ${this.images.length} ✅`;
+                    
+                    this.showStatus('画像を保存しました', 'success');
+                } catch (error) {
+                    this.showStatus('保存に失敗しました', 'error');
+                    console.error('Save error:', error);
+                }
+            }
+
+            previousImage() {
+                if (this.currentIndex > 0) {
+                    this.currentIndex--;
+                    this.displayImage();
+                }
+            }
+
+            nextImage() {
+                if (this.currentIndex < this.images.length - 1) {
+                    this.currentIndex++;
+                    this.displayImage();
+                }
+            }
+
+            showStatus(message, type) {
+                const statusEl = document.getElementById('statusMessage');
+                statusEl.textContent = message;
+                statusEl.className = `status-message status-${type}`;
+                statusEl.style.display = 'block';
+                
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // Initialize the app
+        const mosaicTool = new MosaicTool();
+    </script>
+</body>
+</html>
