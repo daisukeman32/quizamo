@@ -94,7 +94,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 500px;
+            min-height: 600px;
+            flex: 1;
             overflow: hidden;
         }
 
@@ -665,21 +666,18 @@
                 this.mosaicSize = 10;
                 this.mosaicType = 'pixelate';
                 
-                // Wait for DOM to be ready before checking electronAPI
-                this.isElectron = false;
-                
                 this.initializeEventListeners();
                 
                 // Check for Electron API after a short delay
                 setTimeout(() => {
                     this.isElectron = typeof window.electronAPI !== 'undefined';
-                    console.log('Electron check after delay:', this.isElectron);
+                    console.log('Electron check:', this.isElectron);
                     console.log('electronAPI:', window.electronAPI);
                 }, 100);
             }
 
             initializeEventListeners() {
-                // Folder selection - always add the event listeners
+                // Folder selection
                 document.getElementById('selectSourceFolder').addEventListener('click', () => {
                     console.log('Source folder clicked');
                     this.selectSourceFolder();
@@ -765,9 +763,7 @@
                 const x = e.clientX;
                 const y = e.clientY;
                 
-                // Check if cursor is over canvas
                 if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-                    // Position cursor at exact mouse position
                     const size = this.brushSize;
                     this.cursorPreview.style.left = (x - size/2) + 'px';
                     this.cursorPreview.style.top = (y - size/2) + 'px';
@@ -781,7 +777,6 @@
                 const size = this.brushSize;
                 this.cursorPreview.style.width = size + 'px';
                 this.cursorPreview.style.height = size + 'px';
-                // Remove margin offsets since we're positioning directly
             }
 
             showCursor() {
@@ -796,14 +791,11 @@
                 try {
                     console.log('selectSourceFolder called');
                     
-                    // Check for Electron API at runtime
                     const isElectronRuntime = typeof window.electronAPI !== 'undefined';
                     console.log('isElectron (runtime check):', isElectronRuntime);
-                    console.log('electronAPI available:', typeof window.electronAPI);
                     
                     if (!isElectronRuntime || !window.electronAPI) {
                         console.log('ElectronAPI not available, using fallback');
-                        // Trigger file input as fallback
                         const fileInput = document.querySelector('input[type="file"][webkitdirectory]');
                         if (fileInput) {
                             fileInput.click();
@@ -819,7 +811,7 @@
                     
                     if (folderPath) {
                         this.sourceFolderPath = folderPath;
-                        const folderName = folderPath.split(/[\\/]/).pop();
+                        const folderName = folderPath.split(/[\\\\/]/).pop();
                         document.getElementById('sourceFolderText').textContent = folderName || 'FOLDER SELECTED';
                         
                         document.getElementById('loading').style.display = 'flex';
@@ -864,7 +856,6 @@
                         }
                     } else {
                         console.log('No folder selected');
-                        this.showStatus('No folder selected', 'error');
                     }
                 } catch (error) {
                     console.error('Error in selectSourceFolder:', error);
@@ -887,7 +878,7 @@
                     
                     if (folderPath) {
                         this.outputFolderPath = folderPath;
-                        const folderName = folderPath.split(/[\\/]/).pop();
+                        const folderName = folderPath.split(/[\\\\/]/).pop();
                         document.getElementById('outputFolderText').textContent = folderName || 'OUTPUT SELECTED';
                         this.showStatus('Output folder selected', 'success');
                     }
@@ -898,43 +889,52 @@
             }
             
             async loadWebImages(event) {
-                const files = Array.from(event.target.files).filter(file => 
-                    file.type.startsWith('image/')
-                );
-                
-                if (files.length === 0) {
-                    this.showStatus('No image files found', 'error');
-                    return;
-                }
-                
-                document.getElementById('loading').style.display = 'flex';
-                this.images = [];
-                
-                for (const file of files) {
-                    const img = new Image();
-                    const url = URL.createObjectURL(file);
+                try {
+                    const files = Array.from(event.target.files).filter(file => 
+                        file.type.startsWith('image/')
+                    );
                     
-                    await new Promise((resolve) => {
-                        img.onload = () => {
-                            this.images.push({
-                                img: img,
-                                url: url,
-                                name: file.name,
-                                file: file
-                            });
-                            resolve();
-                        };
-                        img.src = url;
-                    });
-                }
-                
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('fileCount').textContent = `${this.images.length} IMAGES LOADED`;
-                
-                if (this.images.length > 0) {
-                    this.currentIndex = 0;
-                    this.displayImage();
-                    this.showStatus(`Loaded ${this.images.length} images`, 'success');
+                    if (files.length === 0) {
+                        this.showStatus('No image files found', 'error');
+                        return;
+                    }
+                    
+                    document.getElementById('loading').style.display = 'flex';
+                    this.images = [];
+                    
+                    for (const file of files) {
+                        const img = new Image();
+                        const url = URL.createObjectURL(file);
+                        
+                        await new Promise((resolve) => {
+                            img.onload = () => {
+                                this.images.push({
+                                    img: img,
+                                    url: url,
+                                    name: file.name,
+                                    file: file
+                                });
+                                resolve();
+                            };
+                            img.onerror = () => {
+                                console.error('Failed to load image:', file.name);
+                                resolve();
+                            };
+                            img.src = url;
+                        });
+                    }
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('fileCount').textContent = `${this.images.length} IMAGES LOADED`;
+                    
+                    if (this.images.length > 0) {
+                        this.currentIndex = 0;
+                        this.displayImage();
+                        this.showStatus(`Loaded ${this.images.length} images`, 'success');
+                    }
+                } catch (error) {
+                    console.error('Error loading web images:', error);
+                    this.showStatus('Error loading images', 'error');
                 }
             }
 
@@ -944,7 +944,6 @@
                 const imageData = this.images[this.currentIndex];
                 this.currentImage = imageData.img;
                 
-                // Calculate dimensions
                 const maxWidth = 800;
                 const maxHeight = 600;
                 let width = this.currentImage.width;
@@ -966,17 +965,14 @@
                 this.ctx.drawImage(this.currentImage, 0, 0, width, height);
                 this.originalImageData = this.ctx.getImageData(0, 0, width, height);
                 
-                // Reset history
                 this.history = [this.ctx.getImageData(0, 0, width, height)];
                 this.historyStep = 0;
                 
-                // Update indicator
                 const indicator = document.getElementById('indicator');
                 const savedMark = this.savedImages.has(this.currentIndex);
                 indicator.textContent = `${this.currentIndex + 1} / ${this.images.length}`;
                 indicator.className = savedMark ? 'indicator saved' : 'indicator';
                 
-                // Update button states
                 this.updateButtonStates();
             }
 
@@ -1177,8 +1173,9 @@
                 if (this.images.length === 0) return;
                 
                 try {
-                    if (this.isElectron && this.outputFolderPath) {
-                        // Electron version - save directly to output folder
+                    const isElectronRuntime = typeof window.electronAPI !== 'undefined';
+                    
+                    if (isElectronRuntime && this.outputFolderPath && window.electronAPI) {
                         const imageData = this.canvas.toDataURL('image/png');
                         const originalName = this.images[this.currentIndex].name;
                         const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
@@ -1195,7 +1192,6 @@
                             this.showStatus('Failed to save image', 'error');
                         }
                     } else {
-                        // Web version - download file
                         const blob = await new Promise(resolve => {
                             this.canvas.toBlob(resolve, 'image/png');
                         });
@@ -1210,12 +1206,12 @@
                         a.click();
                         document.body.removeChild(a);
                         URL.revokeObjectURL(url);
-                    
-                    this.savedImages.add(this.currentIndex);
-                    const indicator = document.getElementById('indicator');
-                    indicator.className = 'indicator saved';
-                    
-                    this.showStatus('Image saved successfully', 'success');
+                        
+                        this.savedImages.add(this.currentIndex);
+                        const indicator = document.getElementById('indicator');
+                        indicator.className = 'indicator saved';
+                        this.showStatus('Image saved successfully', 'success');
+                    }
                 } catch (error) {
                     this.showStatus('Failed to save image', 'error');
                     console.error('Save error:', error);
