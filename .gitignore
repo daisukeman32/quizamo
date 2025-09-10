@@ -1,13 +1,17 @@
-# 画像フォルダ
-画像フォルダ/
-完成フォルダ/
+# Dependencies
+node_modules/
+npm-debug.log*
 
-# OS files
-.DS_Store
-Thumbs.db
+# Distribution files
+dist/
 
-# Editor files
+# Logs
+*.log
+
+# IDE
 .vscode/
 .idea/
-*.swp
-*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
