@@ -20,7 +20,9 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^27.0.0",
-    "electron-builder": "^24.6.4"
+    "electron-builder": "^24.6.4",
+    "icon-gen": "^5.0.0",
+    "rcedit": "^4.0.1"
   },
   "build": {
     "appId": "com.quizamo.mosaic",
@@ -37,7 +39,7 @@
     ],
     "win": {
       "target": "dir",
-      "icon": "build/icons/icon-256x256.png",
+      "icon": "build/icons/app.ico",
       "sign": false
     },
     "mac": {
