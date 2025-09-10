@@ -1,15 +1,21 @@
 {
   "name": "quizamo-mosaic-tool",
-  "version": "1.2.0",
+  "version": "1.5.0",
   "description": "QUIZAMO - Professional Mosaic Tool",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "build": "electron-builder",
     "build-win": "electron-builder --win",
     "build-mac": "electron-builder --mac",
-    "build-linux": "electron-builder --linux"
+    "build-linux": "electron-builder --linux",
+    "dist": "electron-builder --publish=never"
   },
-  "keywords": ["mosaic", "image-editor", "privacy-tool"],
+  "keywords": [
+    "mosaic",
+    "image-editor",
+    "privacy-tool"
+  ],
   "author": "Quizamo Developer",
   "license": "MIT",
   "devDependencies": {
@@ -22,17 +28,32 @@
     "directories": {
       "output": "dist"
     },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "package.json"
+    ],
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "target": "dir",
+      "icon": "build/icons/icon-256x256.png"
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.icns"
+      "icon": "build/icons/icon-512x512.png"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "assets/icon.png"
+      "icon": "build/icons/icon-256x256.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
+  },
+  "dependencies": {
+    "canvas": "^3.2.0"
   }
 }
