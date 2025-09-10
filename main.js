@@ -11,6 +11,7 @@ function createWindow() {
         minWidth: 1024,
         minHeight: 768,
         backgroundColor: '#0a0a0a',
+        icon: path.join(__dirname, 'build/icons/icon-256x256.png'),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,

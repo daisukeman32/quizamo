@@ -32,11 +32,13 @@
       "main.js",
       "preload.js",
       "index.html",
-      "package.json"
+      "package.json",
+      "build/"
     ],
     "win": {
       "target": "dir",
-      "icon": "build/icons/icon-256x256.png"
+      "icon": "build/icons/icon-256x256.png",
+      "sign": false
     },
     "mac": {
       "target": "dmg",
