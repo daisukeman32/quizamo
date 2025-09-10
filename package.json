@@ -1,0 +1,38 @@
+{
+  "name": "quizamo-mosaic-tool",
+  "version": "1.2.0",
+  "description": "QUIZAMO - Professional Mosaic Tool",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build-win": "electron-builder --win",
+    "build-mac": "electron-builder --mac",
+    "build-linux": "electron-builder --linux"
+  },
+  "keywords": ["mosaic", "image-editor", "privacy-tool"],
+  "author": "Quizamo Developer",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.quizamo.mosaic",
+    "productName": "QUIZAMO Mosaic Tool",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
+    }
+  }
+}
