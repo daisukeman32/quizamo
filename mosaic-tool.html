@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #000;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -22,9 +22,8 @@
         }
 
         .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: #1a1a1a;
+            border: 1px solid #333;
             max-width: 1200px;
             width: 100%;
             padding: 30px;
@@ -36,14 +35,15 @@
         }
 
         .header h1 {
-            color: #333;
-            font-size: 28px;
+            color: #fff;
+            font-size: 24px;
             margin-bottom: 10px;
+            font-weight: normal;
         }
 
         .indicator {
             font-size: 18px;
-            color: #666;
+            color: #aaa;
             font-weight: bold;
         }
 
@@ -55,8 +55,8 @@
 
         .canvas-container {
             flex: 1;
-            background: #f5f5f5;
-            border-radius: 10px;
+            background: #0a0a0a;
+            border: 1px solid #333;
             padding: 20px;
             display: flex;
             justify-content: center;
@@ -68,16 +68,24 @@
         canvas {
             max-width: 100%;
             max-height: 500px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            cursor: crosshair;
-            background: white;
+            border: 1px solid #444;
+            cursor: none;
+            background: #000;
+        }
+
+        .cursor-preview {
+            position: absolute;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 0 0 1px #000;
         }
 
         .controls {
             width: 300px;
-            background: #f9f9f9;
-            border-radius: 10px;
+            background: #0a0a0a;
+            border: 1px solid #333;
             padding: 20px;
         }
 
@@ -88,7 +96,7 @@
         .control-group label {
             display: block;
             margin-bottom: 8px;
-            color: #555;
+            color: #aaa;
             font-weight: 500;
             font-size: 14px;
         }
@@ -101,9 +109,8 @@
 
         input[type="range"] {
             flex: 1;
-            height: 6px;
-            border-radius: 3px;
-            background: #ddd;
+            height: 4px;
+            background: #333;
             outline: none;
             -webkit-appearance: none;
         }
@@ -111,18 +118,18 @@
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
-            background: #667eea;
+            background: #fff;
             cursor: pointer;
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
-            background: #667eea;
+            background: #fff;
             cursor: pointer;
         }
 
@@ -130,22 +137,21 @@
             min-width: 40px;
             text-align: center;
             font-weight: bold;
-            color: #667eea;
+            color: #fff;
         }
 
         select {
             width: 100%;
             padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            background: white;
+            border: 1px solid #333;
+            background: #000;
+            color: #fff;
             font-size: 14px;
             cursor: pointer;
-            transition: border-color 0.3s;
         }
 
         select:hover {
-            border-color: #667eea;
+            border-color: #666;
         }
 
         .button-group {
@@ -157,47 +163,32 @@
         button {
             flex: 1;
             padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
+            border: 1px solid #444;
+            background: #111;
+            color: #fff;
             font-size: 14px;
-            font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #222;
+            border-color: #666;
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #222;
+            border-color: #555;
         }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #666;
-        }
-
-        .btn-secondary:hover {
-            background: #e0e0e0;
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
-        }
-
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(17, 153, 142, 0.4);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
-            color: white;
+        .btn-primary:hover:not(:disabled) {
+            background: #333;
+            border-color: #777;
         }
 
         .navigation {
@@ -214,44 +205,57 @@
             display: none;
         }
 
-        .file-select-btn {
+        .folder-path {
             width: 100%;
             margin-bottom: 20px;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
+        }
+
+        .folder-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .folder-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #333;
+            background: #000;
+            color: #fff;
+            font-size: 14px;
         }
 
         .status-message {
             text-align: center;
             padding: 10px;
-            border-radius: 5px;
             margin-top: 10px;
             font-weight: bold;
             display: none;
+            border: 1px solid;
         }
 
         .status-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+            background: #001a00;
+            color: #0f0;
+            border-color: #0f0;
         }
 
         .status-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: #1a0000;
+            color: #f00;
+            border-color: #f00;
         }
 
         .loading {
             display: none;
             text-align: center;
             padding: 20px;
-            color: #666;
+            color: #aaa;
         }
 
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border: 3px solid #333;
+            border-top: 3px solid #fff;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -268,20 +272,24 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎨 モザイクツール</h1>
+            <h1>モザイクツール</h1>
             <div class="indicator" id="indicator">画像を選択してください</div>
         </div>
 
-        <div class="controls" style="margin-bottom: 20px;">
-            <button class="file-select-btn" onclick="document.getElementById('fileInput').click()">
-                📁 画像フォルダを選択
-            </button>
-            <input type="file" id="fileInput" webkitdirectory directory multiple accept="image/*">
+        <div class="folder-path">
+            <div class="folder-input-group">
+                <input type="text" class="folder-input" id="sourceFolderPath" placeholder="画像フォルダパス (例: C:\\Images)" value="画像フォルダ">
+                <button onclick="loadFromFolder()">読み込み</button>
+            </div>
+            <div class="folder-input-group">
+                <input type="text" class="folder-input" id="outputFolderPath" placeholder="完成フォルダパス (例: C:\\Output)" value="完成フォルダ">
+            </div>
         </div>
 
         <div class="main-content">
             <div class="canvas-container">
                 <canvas id="canvas"></canvas>
+                <div class="cursor-preview" id="cursorPreview"></div>
                 <div class="loading" id="loading">
                     <div class="spinner"></div>
                     <p>画像を読み込み中...</p>
@@ -315,20 +323,20 @@
                 </div>
 
                 <div class="button-group">
-                    <button class="btn-secondary" id="undoBtn">↶ 元に戻す</button>
-                    <button class="btn-secondary" id="redoBtn">↷ やり直す</button>
+                    <button id="undoBtn">元に戻す</button>
+                    <button id="redoBtn">やり直す</button>
                 </div>
 
                 <div class="button-group">
-                    <button class="btn-danger" id="clearBtn">🗑️ クリア</button>
-                    <button class="btn-success" id="saveBtn">💾 保存</button>
+                    <button id="clearBtn">クリア</button>
+                    <button id="saveBtn">保存</button>
                 </div>
             </div>
         </div>
 
         <div class="navigation">
-            <button class="btn-primary" id="prevBtn">← 戻る</button>
-            <button class="btn-primary" id="nextBtn">次へ →</button>
+            <button class="btn-primary" id="prevBtn">戻る</button>
+            <button class="btn-primary" id="nextBtn">次へ</button>
         </div>
 
         <div class="status-message" id="statusMessage"></div>
@@ -347,6 +355,7 @@
                 this.history = [];
                 this.historyStep = -1;
                 this.savedImages = new Set();
+                this.cursorPreview = document.getElementById('cursorPreview');
                 
                 this.brushSize = 30;
                 this.mosaicSize = 15;
@@ -356,13 +365,11 @@
             }
 
             initializeEventListeners() {
-                // File input
-                document.getElementById('fileInput').addEventListener('change', (e) => this.loadImages(e));
-                
                 // Controls
                 document.getElementById('brushSize').addEventListener('input', (e) => {
                     this.brushSize = parseInt(e.target.value);
                     document.getElementById('brushSizeValue').textContent = this.brushSize;
+                    this.updateCursorSize();
                 });
                 
                 document.getElementById('mosaicSize').addEventListener('input', (e) => {
@@ -376,17 +383,27 @@
                 
                 // Canvas events
                 this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
-                this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
                 this.canvas.addEventListener('mouseup', () => this.stopDrawing());
-                this.canvas.addEventListener('mouseleave', () => this.stopDrawing());
+                this.canvas.addEventListener('mouseleave', () => this.hideCursor());
+                this.canvas.addEventListener('mouseenter', () => this.showCursor());
                 
                 // Touch events for mobile
-                this.canvas.addEventListener('touchstart', (e) => this.startDrawing(e.touches[0]));
+                this.canvas.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    this.updateCursorPosition(touch);
+                    this.startDrawing(touch);
+                });
                 this.canvas.addEventListener('touchmove', (e) => {
                     e.preventDefault();
-                    this.draw(e.touches[0]);
+                    const touch = e.touches[0];
+                    this.updateCursorPosition(touch);
+                    this.draw(touch);
                 });
-                this.canvas.addEventListener('touchend', () => this.stopDrawing());
+                this.canvas.addEventListener('touchend', () => {
+                    this.stopDrawing();
+                    this.hideCursor();
+                });
                 
                 // Buttons
                 document.getElementById('undoBtn').addEventListener('click', () => this.undo());
@@ -395,45 +412,102 @@
                 document.getElementById('saveBtn').addEventListener('click', () => this.save());
                 document.getElementById('prevBtn').addEventListener('click', () => this.previousImage());
                 document.getElementById('nextBtn').addEventListener('click', () => this.nextImage());
+                
+                // Initialize cursor size
+                this.updateCursorSize();
             }
 
-            async loadImages(event) {
-                const files = Array.from(event.target.files).filter(file => 
-                    file.type.startsWith('image/')
-                );
+            handleMouseMove(e) {
+                this.updateCursorPosition(e);
+                this.draw(e);
+            }
+
+            updateCursorPosition(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
                 
-                if (files.length === 0) {
-                    this.showStatus('画像ファイルが見つかりませんでした', 'error');
+                this.cursorPreview.style.left = (rect.left + x) + 'px';
+                this.cursorPreview.style.top = (rect.top + y) + 'px';
+                this.cursorPreview.style.display = 'block';
+            }
+
+            updateCursorSize() {
+                const size = this.brushSize;
+                this.cursorPreview.style.width = size + 'px';
+                this.cursorPreview.style.height = size + 'px';
+                this.cursorPreview.style.marginLeft = -size/2 + 'px';
+                this.cursorPreview.style.marginTop = -size/2 + 'px';
+            }
+
+            showCursor() {
+                this.cursorPreview.style.display = 'block';
+            }
+
+            hideCursor() {
+                this.cursorPreview.style.display = 'none';
+            }
+
+            async loadFromLocalFolder() {
+                const sourcePath = document.getElementById('sourceFolderPath').value.trim();
+                
+                if (!sourcePath) {
+                    this.showStatus('画像フォルダパスを入力してください', 'error');
                     return;
                 }
                 
-                document.getElementById('loading').style.display = 'block';
-                this.images = [];
+                // ローカルファイルシステムの場合は、file:// プロトコルを使用
+                // ただし、ブラウザのセキュリティ制限により、直接ローカルファイルを読み込むことはできません
+                // そのため、ユーザーにファイル選択ダイアログを表示する必要があります
                 
-                for (const file of files) {
-                    const img = new Image();
-                    const url = URL.createObjectURL(file);
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.webkitdirectory = true;
+                input.directory = true;
+                input.multiple = true;
+                input.accept = 'image/*';
+                
+                input.onchange = async (e) => {
+                    const files = Array.from(e.target.files).filter(file => 
+                        file.type.startsWith('image/')
+                    );
                     
-                    await new Promise((resolve) => {
-                        img.onload = () => {
-                            this.images.push({
-                                img: img,
-                                url: url,
-                                name: file.name
-                            });
-                            resolve();
-                        };
-                        img.src = url;
-                    });
-                }
+                    if (files.length === 0) {
+                        this.showStatus('画像ファイルが見つかりませんでした', 'error');
+                        return;
+                    }
+                    
+                    document.getElementById('loading').style.display = 'block';
+                    this.images = [];
+                    
+                    for (const file of files) {
+                        const img = new Image();
+                        const url = URL.createObjectURL(file);
+                        
+                        await new Promise((resolve) => {
+                            img.onload = () => {
+                                this.images.push({
+                                    img: img,
+                                    url: url,
+                                    name: file.name,
+                                    file: file
+                                });
+                                resolve();
+                            };
+                            img.src = url;
+                        });
+                    }
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    if (this.images.length > 0) {
+                        this.currentIndex = 0;
+                        this.displayImage();
+                        this.showStatus(`${this.images.length}枚の画像を読み込みました`, 'success');
+                    }
+                };
                 
-                document.getElementById('loading').style.display = 'none';
-                
-                if (this.images.length > 0) {
-                    this.currentIndex = 0;
-                    this.displayImage();
-                    this.showStatus(`${this.images.length}枚の画像を読み込みました`, 'success');
-                }
+                input.click();
             }
 
             displayImage() {
@@ -469,8 +543,9 @@
                 this.historyStep = 0;
                 
                 // Update indicator
+                const savedMark = this.savedImages.has(this.currentIndex) ? ' [保存済]' : '';
                 document.getElementById('indicator').textContent = 
-                    `${this.currentIndex + 1} / ${this.images.length} ${this.savedImages.has(this.currentIndex) ? '✅' : ''}`;
+                    `${this.currentIndex + 1} / ${this.images.length}${savedMark}`;
                 
                 // Update button states
                 document.getElementById('prevBtn').disabled = this.currentIndex === 0;
@@ -662,12 +737,17 @@
                         this.canvas.toBlob(resolve, 'image/png');
                     });
                     
-                    // Create download link
+                    // Get output folder path
+                    const outputPath = document.getElementById('outputFolderPath').value.trim() || '完成フォルダ';
+                    
+                    // Create download link with folder suggestion in filename
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     const originalName = this.images[this.currentIndex].name;
                     const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
                     a.href = url;
+                    // Note: Browser will save to default download folder
+                    // User needs to manually move to the specified output folder
                     a.download = `mosaic_${nameWithoutExt}.png`;
                     document.body.appendChild(a);
                     a.click();
@@ -676,8 +756,9 @@
                     
                     // Mark as saved
                     this.savedImages.add(this.currentIndex);
+                    const savedMark = ' [保存済]';
                     document.getElementById('indicator').textContent = 
-                        `${this.currentIndex + 1} / ${this.images.length} ✅`;
+                        `${this.currentIndex + 1} / ${this.images.length}${savedMark}`;
                     
                     this.showStatus('画像を保存しました', 'success');
                 } catch (error) {
@@ -714,6 +795,11 @@
 
         // Initialize the app
         const mosaicTool = new MosaicTool();
+        
+        // Global function for loading from folder
+        function loadFromFolder() {
+            mosaicTool.loadFromLocalFolder();
+        }
     </script>
 </body>
 </html>
