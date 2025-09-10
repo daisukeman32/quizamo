@@ -5,6 +5,10 @@ npm-debug.log*
 # Distribution files
 dist/
 
+# Large executable files
+*.exe
+QUIZAMO_Mosaic_Tool_v*.exe
+
 # Logs
 *.log
 
