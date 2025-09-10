@@ -665,30 +665,41 @@
                 this.mosaicSize = 10;
                 this.mosaicType = 'pixelate';
                 
-                this.isElectron = typeof window.electronAPI !== 'undefined';
+                // Wait for DOM to be ready before checking electronAPI
+                this.isElectron = false;
                 
                 this.initializeEventListeners();
+                
+                // Check for Electron API after a short delay
+                setTimeout(() => {
+                    this.isElectron = typeof window.electronAPI !== 'undefined';
+                    console.log('Electron check after delay:', this.isElectron);
+                    console.log('electronAPI:', window.electronAPI);
+                }, 100);
             }
 
             initializeEventListeners() {
-                // Folder selection
-                if (this.isElectron) {
-                    document.getElementById('selectSourceFolder').addEventListener('click', () => this.selectSourceFolder());
-                    document.getElementById('selectOutputFolder').addEventListener('click', () => this.selectOutputFolder());
-                } else {
-                    // Fallback for web version
-                    const fileInput = document.createElement('input');
-                    fileInput.type = 'file';
-                    fileInput.webkitdirectory = true;
-                    fileInput.directory = true;
-                    fileInput.multiple = true;
-                    fileInput.accept = 'image/*';
-                    fileInput.style.display = 'none';
-                    document.body.appendChild(fileInput);
-                    
-                    document.getElementById('selectSourceFolder').addEventListener('click', () => fileInput.click());
-                    fileInput.addEventListener('change', (e) => this.loadWebImages(e));
-                }
+                // Folder selection - always add the event listeners
+                document.getElementById('selectSourceFolder').addEventListener('click', () => {
+                    console.log('Source folder clicked');
+                    this.selectSourceFolder();
+                });
+                
+                document.getElementById('selectOutputFolder').addEventListener('click', () => {
+                    console.log('Output folder clicked');  
+                    this.selectOutputFolder();
+                });
+                
+                // Fallback for web version
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.webkitdirectory = true;
+                fileInput.directory = true;
+                fileInput.multiple = true;
+                fileInput.accept = 'image/*';
+                fileInput.style.display = 'none';
+                document.body.appendChild(fileInput);
+                fileInput.addEventListener('change', (e) => this.loadWebImages(e));
                 
                 // Controls
                 document.getElementById('brushSize').addEventListener('input', (e) => {
@@ -782,58 +793,107 @@
             }
 
             async selectSourceFolder() {
-                if (!this.isElectron) return;
-                
-                const folderPath = await window.electronAPI.selectFolder();
-                if (folderPath) {
-                    this.sourceFolderPath = folderPath;
-                    document.getElementById('sourceFolderText').textContent = folderPath.split(/[\\/]/).pop();
+                try {
+                    console.log('selectSourceFolder called');
                     
-                    document.getElementById('loading').style.display = 'flex';
-                    const images = await window.electronAPI.readFolder(folderPath);
+                    // Check for Electron API at runtime
+                    const isElectronRuntime = typeof window.electronAPI !== 'undefined';
+                    console.log('isElectron (runtime check):', isElectronRuntime);
+                    console.log('electronAPI available:', typeof window.electronAPI);
                     
-                    if (images.length === 0) {
-                        document.getElementById('loading').style.display = 'none';
-                        this.showStatus('No image files found', 'error');
+                    if (!isElectronRuntime || !window.electronAPI) {
+                        console.log('ElectronAPI not available, using fallback');
+                        // Trigger file input as fallback
+                        const fileInput = document.querySelector('input[type="file"][webkitdirectory]');
+                        if (fileInput) {
+                            fileInput.click();
+                            return;
+                        }
+                        this.showStatus('File system access not available', 'error');
                         return;
                     }
                     
-                    this.images = [];
-                    for (const imageData of images) {
-                        const img = new Image();
-                        await new Promise((resolve) => {
-                            img.onload = () => {
-                                this.images.push({
-                                    img: img,
-                                    name: imageData.name,
-                                    path: imageData.path,
-                                    data: imageData.data
-                                });
-                                resolve();
-                            };
-                            img.src = imageData.data;
-                        });
-                    }
+                    console.log('Calling electronAPI.selectFolder()');
+                    const folderPath = await window.electronAPI.selectFolder();
+                    console.log('Selected folder:', folderPath);
                     
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('fileCount').textContent = `${this.images.length} IMAGES LOADED`;
-                    
-                    if (this.images.length > 0) {
-                        this.currentIndex = 0;
-                        this.displayImage();
-                        this.showStatus(`Loaded ${this.images.length} images`, 'success');
+                    if (folderPath) {
+                        this.sourceFolderPath = folderPath;
+                        const folderName = folderPath.split(/[\\/]/).pop();
+                        document.getElementById('sourceFolderText').textContent = folderName || 'FOLDER SELECTED';
+                        
+                        document.getElementById('loading').style.display = 'flex';
+                        console.log('Reading folder:', folderPath);
+                        const images = await window.electronAPI.readFolder(folderPath);
+                        console.log('Images found:', images.length);
+                        
+                        if (images.length === 0) {
+                            document.getElementById('loading').style.display = 'none';
+                            this.showStatus('No image files found in folder', 'error');
+                            return;
+                        }
+                        
+                        this.images = [];
+                        for (const imageData of images) {
+                            const img = new Image();
+                            await new Promise((resolve) => {
+                                img.onload = () => {
+                                    this.images.push({
+                                        img: img,
+                                        name: imageData.name,
+                                        path: imageData.path,
+                                        data: imageData.data
+                                    });
+                                    resolve();
+                                };
+                                img.onerror = () => {
+                                    console.error('Failed to load image:', imageData.name);
+                                    resolve();
+                                };
+                                img.src = imageData.data;
+                            });
+                        }
+                        
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('fileCount').textContent = `${this.images.length} IMAGES LOADED`;
+                        
+                        if (this.images.length > 0) {
+                            this.currentIndex = 0;
+                            this.displayImage();
+                            this.showStatus(`Loaded ${this.images.length} images`, 'success');
+                        }
+                    } else {
+                        console.log('No folder selected');
+                        this.showStatus('No folder selected', 'error');
                     }
+                } catch (error) {
+                    console.error('Error in selectSourceFolder:', error);
+                    this.showStatus('Error: ' + error.message, 'error');
                 }
             }
             
             async selectOutputFolder() {
-                if (!this.isElectron) return;
-                
-                const folderPath = await window.electronAPI.selectOutputFolder();
-                if (folderPath) {
-                    this.outputFolderPath = folderPath;
-                    document.getElementById('outputFolderText').textContent = folderPath.split(/[\\/]/).pop();
-                    this.showStatus('Output folder selected', 'success');
+                try {
+                    console.log('selectOutputFolder called');
+                    
+                    const isElectronRuntime = typeof window.electronAPI !== 'undefined';
+                    if (!isElectronRuntime || !window.electronAPI) {
+                        this.showStatus('Output folder selection requires Electron', 'error');
+                        return;
+                    }
+                    
+                    const folderPath = await window.electronAPI.selectOutputFolder();
+                    console.log('Selected output folder:', folderPath);
+                    
+                    if (folderPath) {
+                        this.outputFolderPath = folderPath;
+                        const folderName = folderPath.split(/[\\/]/).pop();
+                        document.getElementById('outputFolderText').textContent = folderName || 'OUTPUT SELECTED';
+                        this.showStatus('Output folder selected', 'success');
+                    }
+                } catch (error) {
+                    console.error('Error selecting output folder:', error);
+                    this.showStatus('Error selecting output folder', 'error');
                 }
             }
             
