@@ -756,6 +756,17 @@
             </div>
 
             <div class="control-section">
+                <div class="section-title">Output Folder</div>
+                <div class="file-input-area" id="outputFolderArea">
+                    <div class="file-input-label">
+                        <div class="upload-icon"></div>
+                        <div class="file-input-text" id="outputFolderText">SELECT FOLDER</div>
+                        <div class="file-count" id="outputStatus"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
                 <div class="section-title">Actions</div>
                 <div class="action-grid">
                     <button class="action-btn" id="undoBtn">UNDO <span class="shortcut">[Z]</span></button>
@@ -819,6 +830,7 @@
                 this.brushSize = 30;
                 this.mosaicSize = 12;
                 this.mosaicType = 'pixelate';
+                this.outputFolderHandle = null;
 
                 this.presetValues = {
                     1: 1,   // MIN - ほぼ無修正
@@ -842,6 +854,9 @@
                 document.getElementById('fileInputArea').addEventListener('click', () => {
                     document.getElementById('fileInput').click();
                 });
+
+                // Output folder selection
+                document.getElementById('outputFolderArea').addEventListener('click', () => this.selectOutputFolder());
 
                 // Presets
                 document.querySelectorAll('.preset-btn').forEach(btn => {
@@ -1349,6 +1364,30 @@
                 }
             }
 
+            async selectOutputFolder() {
+                // Check if File System Access API is supported
+                if (!('showDirectoryPicker' in window)) {
+                    this.showStatus('This browser does not support folder selection. Use Chrome or Edge.', 'error');
+                    return;
+                }
+
+                try {
+                    this.outputFolderHandle = await window.showDirectoryPicker({
+                        mode: 'readwrite'
+                    });
+
+                    const folderName = this.outputFolderHandle.name;
+                    document.getElementById('outputFolderText').textContent = folderName;
+                    document.getElementById('outputStatus').textContent = 'AUTO-SAVE ENABLED';
+                    this.showStatus(`Output folder: ${folderName}`, 'success');
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.error('Folder selection error:', err);
+                        this.showStatus('Failed to select folder', 'error');
+                    }
+                }
+            }
+
             async save() {
                 if (this.images.length === 0) return;
 
@@ -1357,12 +1396,39 @@
                         this.canvas.toBlob(resolve, 'image/png');
                     });
 
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
                     const originalName = this.images[this.currentIndex].name;
                     const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
+                    const fileName = `mosaic_${nameWithoutExt}.png`;
+
+                    // If output folder is selected, save directly to folder
+                    if (this.outputFolderHandle) {
+                        try {
+                            const fileHandle = await this.outputFolderHandle.getFileHandle(fileName, { create: true });
+                            const writable = await fileHandle.createWritable();
+                            await writable.write(blob);
+                            await writable.close();
+
+                            this.savedImages.add(this.currentIndex);
+                            const indicator = document.getElementById('indicator');
+                            indicator.textContent = `${this.currentIndex + 1} / ${this.images.length} SAVED`;
+                            indicator.className = 'indicator saved';
+                            this.showStatus(`Saved: ${fileName}`, 'success');
+                            return true;
+                        } catch (err) {
+                            console.error('Direct save error:', err);
+                            this.showStatus('Folder access lost. Please reselect folder.', 'error');
+                            this.outputFolderHandle = null;
+                            document.getElementById('outputFolderText').textContent = 'SELECT FOLDER';
+                            document.getElementById('outputStatus').textContent = '';
+                            return false;
+                        }
+                    }
+
+                    // Fallback to download
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
                     a.href = url;
-                    a.download = `mosaic_${nameWithoutExt}.png`;
+                    a.download = fileName;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -1372,7 +1438,7 @@
                     const indicator = document.getElementById('indicator');
                     indicator.textContent = `${this.currentIndex + 1} / ${this.images.length} SAVED`;
                     indicator.className = 'indicator saved';
-                    this.showStatus('Image saved', 'success');
+                    this.showStatus('Image downloaded', 'success');
 
                     return true;
                 } catch (error) {
