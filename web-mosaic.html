@@ -161,8 +161,6 @@
             cursor: none;
             position: relative;
             z-index: 1;
-            transform-origin: center center;
-            transition: transform 0.1s ease;
         }
 
         .cursor-preview {
@@ -847,7 +845,10 @@
                 this.mosaicType = 'pixelate';
                 this.outputFolderHandle = null;
                 this.zoomLevel = 1;
-                this.minZoom = 0.25;
+                this.baseScale = 1;
+                this.originalWidth = 0;
+                this.originalHeight = 0;
+                this.minZoom = 0.5;
                 this.maxZoom = 4;
 
                 this.presetValues = {
@@ -1074,12 +1075,24 @@
             }
 
             zoomReset() {
-                this.setZoom(1);
+                // Toggle between 100% (fit view) and 200% (pixel-level detail)
+                if (this.zoomLevel >= 2) {
+                    this.setZoom(1);
+                } else {
+                    this.setZoom(2);
+                }
             }
 
             setZoom(level) {
                 this.zoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, level));
-                this.canvas.style.transform = `scale(${this.zoomLevel})`;
+
+                // Calculate display size based on original size, baseScale, and zoom
+                const displayWidth = this.originalWidth * (this.baseScale || 1) * this.zoomLevel;
+                const displayHeight = this.originalHeight * (this.baseScale || 1) * this.zoomLevel;
+
+                // Use CSS width/height instead of transform for proper layout
+                this.canvas.style.width = displayWidth + 'px';
+                this.canvas.style.height = displayHeight + 'px';
 
                 const percentage = Math.round(this.zoomLevel * 100);
                 document.getElementById('zoomResetBtn').textContent = `${percentage}%`;
@@ -1198,28 +1211,25 @@
                 const imageData = this.images[this.currentIndex];
                 this.currentImage = imageData.img;
 
-                const maxWidth = 900;
-                const maxHeight = 650;
-                let width = this.currentImage.width;
-                let height = this.currentImage.height;
+                // Store original dimensions
+                this.originalWidth = this.currentImage.width;
+                this.originalHeight = this.currentImage.height;
 
-                if (width > maxWidth) {
-                    height = (maxWidth / width) * height;
-                    width = maxWidth;
-                }
+                // Canvas uses original image size for full quality
+                this.canvas.width = this.originalWidth;
+                this.canvas.height = this.originalHeight;
 
-                if (height > maxHeight) {
-                    width = (maxHeight / height) * width;
-                    height = maxHeight;
-                }
+                // Calculate base scale to fit in view (this is zoom = 100% display)
+                const maxDisplayWidth = 900;
+                const maxDisplayHeight = 650;
+                const scaleX = maxDisplayWidth / this.originalWidth;
+                const scaleY = maxDisplayHeight / this.originalHeight;
+                this.baseScale = Math.min(scaleX, scaleY, 1);
 
-                this.canvas.width = width;
-                this.canvas.height = height;
+                this.ctx.drawImage(this.currentImage, 0, 0, this.originalWidth, this.originalHeight);
+                this.originalImageData = this.ctx.getImageData(0, 0, this.originalWidth, this.originalHeight);
 
-                this.ctx.drawImage(this.currentImage, 0, 0, width, height);
-                this.originalImageData = this.ctx.getImageData(0, 0, width, height);
-
-                this.history = [this.ctx.getImageData(0, 0, width, height)];
+                this.history = [this.ctx.getImageData(0, 0, this.originalWidth, this.originalHeight)];
                 this.historyStep = 0;
 
                 const indicator = document.getElementById('indicator');
@@ -1227,8 +1237,8 @@
                 indicator.textContent = `${this.currentIndex + 1} / ${this.images.length}${savedMark}`;
                 indicator.className = this.savedImages.has(this.currentIndex) ? 'indicator saved' : 'indicator';
 
-                // Reset zoom when changing image
-                this.zoomReset();
+                // Set initial zoom to 100% (fits in view)
+                this.setZoom(1);
 
                 this.updateButtonStates();
             }
