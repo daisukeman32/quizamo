@@ -110,7 +110,7 @@
             align-items: center;
             min-height: 600px;
             flex: 1;
-            overflow: hidden;
+            overflow: auto;
         }
 
         .canvas-wrapper.dragover {
@@ -157,12 +157,12 @@
         }
 
         canvas {
-            max-width: 100%;
-            max-height: 600px;
             background: #000;
             cursor: none;
             position: relative;
             z-index: 1;
+            transform-origin: center center;
+            transition: transform 0.1s ease;
         }
 
         .cursor-preview {
@@ -249,7 +249,7 @@
 
         /* Controls Panel */
         .controls-panel {
-            width: 260px;
+            width: 320px;
             display: flex;
             flex-direction: column;
             gap: 15px;
@@ -258,15 +258,15 @@
         .control-section {
             background: var(--secondary);
             border: 1px solid var(--border);
-            padding: 12px;
+            padding: 16px;
         }
 
         .section-title {
-            font-size: 9px;
-            font-weight: 500;
-            letter-spacing: 1.2px;
-            color: var(--text-secondary);
-            margin-bottom: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            color: var(--text-primary);
+            margin-bottom: 14px;
             text-transform: uppercase;
         }
 
@@ -328,15 +328,17 @@
         }
 
         .file-input-text {
-            font-size: 10px;
-            color: var(--text-secondary);
-            letter-spacing: 0.3px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            letter-spacing: 0.5px;
         }
 
         .file-count {
-            font-size: 9px;
-            color: var(--text-primary);
-            margin-top: 3px;
+            font-size: 11px;
+            font-weight: 500;
+            color: #00ff88;
+            margin-top: 5px;
         }
 
         /* Presets */
@@ -348,21 +350,21 @@
         }
 
         .preset-btn {
-            padding: 8px 4px;
+            padding: 10px 6px;
             background: var(--primary);
             border: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 8px;
-            font-weight: 400;
-            letter-spacing: 0.3px;
+            color: var(--text-primary);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
             cursor: pointer;
             transition: all 0.2s ease;
             text-transform: uppercase;
         }
 
         .preset-btn:hover {
-            border-color: var(--text-secondary);
-            color: var(--text-primary);
+            border-color: var(--text-primary);
+            background: var(--hover);
         }
 
         .preset-btn.active {
@@ -373,9 +375,9 @@
 
         .preset-btn .key {
             display: block;
-            font-size: 7px;
-            opacity: 0.6;
-            margin-top: 2px;
+            font-size: 9px;
+            opacity: 0.7;
+            margin-top: 3px;
         }
 
         /* Sliders */
@@ -395,15 +397,15 @@
         }
 
         .slider-name {
-            font-size: 9px;
-            font-weight: 400;
-            color: var(--text-secondary);
-            letter-spacing: 0.3px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #cccccc;
+            letter-spacing: 0.5px;
         }
 
         .slider-value {
-            font-size: 11px;
-            font-weight: 200;
+            font-size: 14px;
+            font-weight: 600;
             color: var(--text-primary);
             font-variant-numeric: tabular-nums;
         }
@@ -497,12 +499,12 @@
         }
 
         .action-btn {
-            padding: 10px;
+            padding: 12px;
             background: var(--secondary);
             border: none;
-            color: var(--text-secondary);
-            font-size: 8px;
-            font-weight: 400;
+            color: var(--text-primary);
+            font-size: 11px;
+            font-weight: 600;
             letter-spacing: 0.5px;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -510,8 +512,8 @@
         }
 
         .action-btn .shortcut {
-            font-size: 7px;
-            opacity: 0.5;
+            font-size: 9px;
+            opacity: 0.6;
             margin-left: 4px;
         }
 
@@ -540,14 +542,14 @@
         .shortcuts-panel {
             background: var(--secondary);
             border: 1px solid var(--border);
-            padding: 12px;
+            padding: 16px;
         }
 
         .shortcut-row {
             display: flex;
             justify-content: space-between;
-            font-size: 9px;
-            margin-bottom: 6px;
+            font-size: 11px;
+            margin-bottom: 8px;
         }
 
         .shortcut-row:last-child {
@@ -557,13 +559,15 @@
         .shortcut-key {
             color: var(--text-primary);
             background: var(--primary);
-            padding: 2px 6px;
+            padding: 3px 8px;
             border: 1px solid var(--border);
             font-family: monospace;
+            font-weight: 600;
         }
 
         .shortcut-desc {
-            color: var(--text-secondary);
+            color: #cccccc;
+            font-weight: 500;
         }
 
         /* Loading State */
@@ -684,6 +688,9 @@
 
             <div class="navigation">
                 <button class="nav-btn" id="prevBtn">PREVIOUS <span class="shortcut">[A]</span></button>
+                <button class="nav-btn" id="zoomOutBtn">ZOOM - <span class="shortcut">[Q]</span></button>
+                <button class="nav-btn" id="zoomResetBtn">100%</button>
+                <button class="nav-btn" id="zoomInBtn">ZOOM + <span class="shortcut">[E]</span></button>
                 <button class="nav-btn" id="nextBtn">NEXT <span class="shortcut">[D]</span></button>
             </div>
         </div>
@@ -799,6 +806,14 @@
                     <span class="shortcut-key">[ / ]</span>
                     <span class="shortcut-desc">Brush Size -/+</span>
                 </div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">Q / E</span>
+                    <span class="shortcut-desc">Zoom Out / In</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">Wheel</span>
+                    <span class="shortcut-desc">Zoom In / Out</span>
+                </div>
             </div>
         </div>
     </div>
@@ -831,6 +846,9 @@
                 this.mosaicSize = 12;
                 this.mosaicType = 'pixelate';
                 this.outputFolderHandle = null;
+                this.zoomLevel = 1;
+                this.minZoom = 0.25;
+                this.maxZoom = 4;
 
                 this.presetValues = {
                     1: 1,   // MIN - ほぼ無修正
@@ -916,6 +934,21 @@
                 document.getElementById('saveBtn').addEventListener('click', () => this.save());
                 document.getElementById('prevBtn').addEventListener('click', () => this.previousImage());
                 document.getElementById('nextBtn').addEventListener('click', () => this.nextImage());
+
+                // Zoom buttons
+                document.getElementById('zoomInBtn').addEventListener('click', () => this.zoomIn());
+                document.getElementById('zoomOutBtn').addEventListener('click', () => this.zoomOut());
+                document.getElementById('zoomResetBtn').addEventListener('click', () => this.zoomReset());
+
+                // Mouse wheel zoom
+                this.canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        this.zoomIn();
+                    } else {
+                        this.zoomOut();
+                    }
+                }, { passive: false });
             }
 
             initializeKeyboardShortcuts() {
@@ -972,6 +1005,14 @@
                             e.preventDefault();
                             this.adjustBrushSize(5);
                             break;
+                        case 'q':
+                            e.preventDefault();
+                            this.zoomOut();
+                            break;
+                        case 'e':
+                            e.preventDefault();
+                            this.zoomIn();
+                            break;
                     }
                 });
             }
@@ -1022,6 +1063,26 @@
                 document.getElementById('brushSize').value = this.brushSize;
                 document.getElementById('brushSizeValue').textContent = this.brushSize;
                 this.updateCursorSize();
+            }
+
+            zoomIn() {
+                this.setZoom(this.zoomLevel * 1.25);
+            }
+
+            zoomOut() {
+                this.setZoom(this.zoomLevel / 1.25);
+            }
+
+            zoomReset() {
+                this.setZoom(1);
+            }
+
+            setZoom(level) {
+                this.zoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, level));
+                this.canvas.style.transform = `scale(${this.zoomLevel})`;
+
+                const percentage = Math.round(this.zoomLevel * 100);
+                document.getElementById('zoomResetBtn').textContent = `${percentage}%`;
             }
 
             updateIntensityDisplay() {
@@ -1165,6 +1226,9 @@
                 const savedMark = this.savedImages.has(this.currentIndex) ? ' SAVED' : '';
                 indicator.textContent = `${this.currentIndex + 1} / ${this.images.length}${savedMark}`;
                 indicator.className = this.savedImages.has(this.currentIndex) ? 'indicator saved' : 'indicator';
+
+                // Reset zoom when changing image
+                this.zoomReset();
 
                 this.updateButtonStates();
             }
