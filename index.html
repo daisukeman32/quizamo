@@ -64,6 +64,14 @@
             letter-spacing: 1px;
         }
 
+        .version {
+            font-size: 9px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-left: 8px;
+            opacity: 0.7;
+        }
+
         .indicator {
             position: absolute;
             left: 50%;
@@ -84,13 +92,148 @@
             letter-spacing: 0.5px;
         }
 
+        /* Shortcuts Panel */
+        .shortcuts-panel {
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            padding: 12px 10px;
+        }
+
+        .shortcuts-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 6px 10px;
+            font-size: 9px;
+        }
+
+        .sk {
+            color: var(--text-primary);
+            background: var(--primary);
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            font-family: monospace;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .sd {
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+        }
+
+        /* Header Toggles */
+        .header-toggles {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle, .lang-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 1px;
+            transition: color 0.3s ease;
+        }
+
+        .toggle-label.active {
+            color: var(--text-primary);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-switch.day::before,
+        .toggle-switch.ja::before {
+            transform: translateX(26px);
+        }
+
+        .toggle-icon {
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: color 0.3s ease;
+        }
+
+        .toggle-icon.active {
+            color: var(--text-primary);
+        }
+
+        /* Day Mode */
+        body.day-mode {
+            --primary: #f5f5f5;
+            --secondary: #ffffff;
+            --accent: #000000;
+            --border: #e0e0e0;
+            --text-primary: #000000;
+            --text-secondary: #666666;
+            --hover: #eeeeee;
+        }
+
+        body.day-mode .canvas-wrapper::before {
+            background:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 40px,
+                    rgba(0,0,0,0.03) 40px,
+                    rgba(0,0,0,0.03) 41px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 40px,
+                    rgba(0,0,0,0.03) 40px,
+                    rgba(0,0,0,0.03) 41px
+                );
+        }
+
+        body.day-mode canvas {
+            background: #e0e0e0;
+        }
+
+        body.day-mode .action-btn.primary {
+            background: #000000;
+            color: #ffffff;
+        }
+
+        body.day-mode .action-btn.primary:hover:not(:disabled) {
+            background: #00aa55;
+        }
+
         /* Main Container */
         .main-container {
             margin-top: 60px;
             flex: 1;
             display: flex;
-            padding: 20px;
-            gap: 20px;
+            padding: 15px;
+            gap: 15px;
         }
 
         /* Canvas Section */
@@ -247,31 +390,40 @@
 
         /* Controls Panel */
         .controls-panel {
-            width: 320px;
+            width: 270px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            justify-content: space-between;
+            height: calc(100vh - 90px);
         }
 
         .control-section {
             background: var(--secondary);
             border: 1px solid var(--border);
-            padding: 16px;
+            padding: 8px;
+        }
+
+        .section-output {
+            padding: 14px 10px;
+        }
+
+        .section-actions {
+            padding: 14px 10px;
         }
 
         .section-title {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 600;
             letter-spacing: 1.5px;
             color: var(--text-primary);
-            margin-bottom: 14px;
+            margin-bottom: 6px;
             text-transform: uppercase;
         }
 
         /* File Input */
         .file-input-area {
             border: 1px dashed var(--border);
-            padding: 15px;
+            padding: 5px 8px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -290,17 +442,18 @@
 
         .file-input-label {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            gap: 8px;
             cursor: pointer;
         }
 
         .upload-icon {
-            width: 24px;
-            height: 24px;
+            width: 16px;
+            height: 16px;
             position: relative;
-            margin: 0 auto;
+            flex-shrink: 0;
         }
 
         .upload-icon::before {
@@ -309,8 +462,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
+            width: 14px;
+            height: 14px;
             border: 1px solid var(--text-secondary);
             border-radius: 50%;
         }
@@ -321,38 +474,144 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 14px;
+            font-size: 10px;
             color: var(--text-secondary);
         }
 
         .file-input-text {
-            font-size: 13px;
+            font-size: 10px;
             font-weight: 500;
             color: var(--text-primary);
             letter-spacing: 0.5px;
         }
 
         .file-count {
-            font-size: 11px;
+            font-size: 9px;
             font-weight: 500;
             color: #00ff88;
-            margin-top: 5px;
+        }
+
+        .folder-path {
+            font-size: 9px;
+            color: #00ff88;
+            margin-top: 6px;
+            word-break: break-all;
+            line-height: 1.3;
+        }
+
+        body.day-mode .folder-path {
+            color: #00aa55;
+        }
+
+        /* Output Settings */
+        .output-info {
+            margin-top: 10px;
+            padding: 8px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 9px;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+        }
+
+        .info-value {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .output-settings {
+            margin-top: 10px;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .setting-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-size: 9px;
+            color: var(--text-secondary);
+            min-width: 40px;
+        }
+
+        .small-select {
+            flex: 1;
+            padding: 4px 6px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-size: 9px;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .custom-size-row {
+            justify-content: flex-start;
+            padding-left: 46px;
+        }
+
+        .size-input {
+            width: 50px;
+            padding: 4px 6px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-size: 9px;
+            text-align: center;
+        }
+
+        .size-input:focus {
+            outline: none;
+            border-color: var(--text-primary);
+        }
+
+        .size-separator {
+            color: var(--text-secondary);
+            font-size: 10px;
+        }
+
+        .size-unit {
+            color: var(--text-secondary);
+            font-size: 9px;
+        }
+
+        .auto-height {
+            display: inline-block;
+            width: 50px;
+            text-align: center;
+            color: var(--text-secondary);
         }
 
         /* Presets */
         .preset-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 4px;
-            margin-bottom: 15px;
+            gap: 2px;
+            margin-bottom: 8px;
         }
 
         .preset-btn {
-            padding: 10px 6px;
+            padding: 6px 3px;
             background: var(--primary);
             border: 1px solid var(--border);
             color: var(--text-primary);
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             letter-spacing: 0.5px;
             cursor: pointer;
@@ -380,7 +639,7 @@
 
         /* Sliders */
         .slider-group {
-            margin-bottom: 12px;
+            margin-bottom: 6px;
         }
 
         .slider-group:last-child {
@@ -391,18 +650,18 @@
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-            margin-bottom: 6px;
+            margin-bottom: 3px;
         }
 
         .slider-name {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 500;
             color: #cccccc;
             letter-spacing: 0.5px;
         }
 
         .slider-value {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--text-primary);
             font-variant-numeric: tabular-nums;
@@ -455,8 +714,8 @@
             background: var(--primary);
             border: 1px solid var(--border);
             color: var(--text-primary);
-            font-size: 9px;
-            font-weight: 300;
+            font-size: 11px;
+            font-weight: 400;
             letter-spacing: 0.3px;
             cursor: pointer;
             -webkit-appearance: none;
@@ -497,11 +756,11 @@
         }
 
         .action-btn {
-            padding: 12px;
+            padding: 12px 8px;
             background: var(--secondary);
             border: none;
             color: var(--text-primary);
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             letter-spacing: 0.5px;
             cursor: pointer;
@@ -666,10 +925,20 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
+            <span class="version">v2.0</span>
         </div>
-        <div class="indicator" id="indicator">DROP IMAGES HERE</div>
-        <div class="shortcuts-hint">
-            [A] Prev [D] Next [S] Save [Space] Save+Next
+        <div class="indicator" id="indicator"></div>
+        <div class="header-toggles">
+            <div class="lang-toggle">
+                <span class="toggle-label active" id="enLabel">EN</span>
+                <div class="toggle-switch" id="langToggle"></div>
+                <span class="toggle-label" id="jaLabel">JA</span>
+            </div>
+            <div class="theme-toggle">
+                <span class="toggle-icon moon active" id="moonIcon">☽</span>
+                <div class="toggle-switch" id="themeToggle"></div>
+                <span class="toggle-icon sun" id="sunIcon">☀</span>
+            </div>
         </div>
     </header>
 
@@ -677,51 +946,51 @@
         <div class="canvas-section">
             <div class="canvas-wrapper" id="dropZone">
                 <div class="drop-hint" id="dropHint">
-                    DROP IMAGES HERE<br>
-                    <span style="font-size: 10px; opacity: 0.5;">or click to select files</span>
+                    <span data-i18n="dropHint">DROP IMAGES HERE</span><br>
+                    <span style="font-size: 10px; opacity: 0.5;" data-i18n="dropHintSub">or click to select files</span>
                 </div>
                 <canvas id="canvas" style="display: none;"></canvas>
                 <div class="cursor-preview" id="cursorPreview"></div>
             </div>
 
             <div class="navigation">
-                <button class="nav-btn" id="prevBtn">PREVIOUS <span class="shortcut">[A]</span></button>
-                <button class="nav-btn" id="zoomOutBtn">ZOOM - <span class="shortcut">[Q]</span></button>
+                <button class="nav-btn" id="prevBtn"><span data-i18n="prev">PREVIOUS</span> <span class="shortcut">[A]</span></button>
+                <button class="nav-btn" id="zoomOutBtn"><span data-i18n="zoomOut">ZOOM -</span> <span class="shortcut">[Q]</span></button>
                 <button class="nav-btn" id="zoomResetBtn">100%</button>
-                <button class="nav-btn" id="zoomInBtn">ZOOM + <span class="shortcut">[E]</span></button>
-                <button class="nav-btn" id="nextBtn">NEXT <span class="shortcut">[D]</span></button>
+                <button class="nav-btn" id="zoomInBtn"><span data-i18n="zoomIn">ZOOM +</span> <span class="shortcut">[E]</span></button>
+                <button class="nav-btn" id="nextBtn"><span data-i18n="next">NEXT</span> <span class="shortcut">[D]</span></button>
             </div>
         </div>
 
         <div class="controls-panel">
             <div class="control-section">
-                <div class="section-title">Intensity Presets</div>
+                <div class="section-title" data-i18n="intensityPresets">Intensity Presets</div>
                 <div class="preset-grid">
                     <button class="preset-btn" data-value="1" id="preset1">
-                        MIN
+                        <span data-i18n="presetMin">MIN</span>
                         <span class="key">[1]</span>
                     </button>
                     <button class="preset-btn" data-value="5" id="preset2">
-                        WEAK
+                        <span data-i18n="presetWeak">WEAK</span>
                         <span class="key">[2]</span>
                     </button>
                     <button class="preset-btn active" data-value="12" id="preset3">
-                        MID
+                        <span data-i18n="presetMid">MID</span>
                         <span class="key">[3]</span>
                     </button>
                     <button class="preset-btn" data-value="20" id="preset4">
-                        STD
+                        <span data-i18n="presetStd">STD</span>
                         <span class="key">[4]</span>
                     </button>
-                    <button class="preset-btn" data-value="35" id="preset5">
-                        MAX
+                    <button class="preset-btn" data-value="50" id="preset5">
+                        <span data-i18n="presetMax">MAX</span>
                         <span class="key">[5]</span>
                     </button>
                 </div>
 
                 <div class="slider-group">
                     <div class="slider-label">
-                        <span class="slider-name">BRUSH SIZE</span>
+                        <span class="slider-name" data-i18n="brushSize">BRUSH SIZE</span>
                         <span class="slider-value" id="brushSizeValue">30</span>
                     </div>
                     <div class="slider-track">
@@ -731,88 +1000,99 @@
 
                 <div class="slider-group">
                     <div class="slider-label">
-                        <span class="slider-name">INTENSITY</span>
+                        <span class="slider-name" data-i18n="intensity">INTENSITY</span>
                         <span class="slider-value" id="mosaicSizeValue">12</span>
                     </div>
                     <div class="slider-track">
-                        <input type="range" id="mosaicSize" min="1" max="40" value="12">
+                        <input type="range" id="mosaicSize" min="1" max="70" value="12">
                     </div>
                 </div>
 
                 <div class="select-wrapper">
                     <select id="mosaicType">
-                        <option value="pixelate">PIXELATE</option>
-                        <option value="blur">GAUSSIAN BLUR</option>
-                        <option value="mosaic">MOSAIC TILE</option>
+                        <option value="pixelate" data-i18n="typePixelate">PIXELATE</option>
+                        <option value="blur" data-i18n="typeBlur">GAUSSIAN BLUR</option>
+                        <option value="mosaic" data-i18n="typeMosaic">MOSAIC TILE</option>
                     </select>
                 </div>
             </div>
 
             <div class="control-section">
-                <div class="section-title">Source Images</div>
+                <div class="section-title" data-i18n="input">Input</div>
                 <div class="file-input-area" id="fileInputArea">
                     <label class="file-input-label">
                         <input type="file" id="fileInput" multiple accept="image/*">
                         <div class="upload-icon"></div>
-                        <div class="file-input-text">SELECT FILES</div>
+                        <div class="file-input-text" data-i18n="selectFiles">SELECT FILES</div>
                         <div class="file-count" id="fileCount"></div>
                     </label>
                 </div>
             </div>
 
-            <div class="control-section">
-                <div class="section-title">Output Folder</div>
+            <div class="control-section section-output">
+                <div class="section-title" data-i18n="output">Output</div>
                 <div class="file-input-area" id="outputFolderArea">
                     <div class="file-input-label">
                         <div class="upload-icon"></div>
-                        <div class="file-input-text" id="outputFolderText">SELECT FOLDER</div>
-                        <div class="file-count" id="outputStatus"></div>
+                        <div class="file-input-text" id="outputFolderText" data-i18n="selectFolder">SELECT FOLDER</div>
+                    </div>
+                </div>
+                <div class="folder-path" id="folderPath"></div>
+
+                <div class="output-info" id="outputInfo">
+                    <div class="info-row">
+                        <span class="info-label" data-i18n="currentSize">Current</span>
+                        <span class="info-value" id="currentSizeDisplay">-</span>
+                    </div>
+                </div>
+
+                <div class="output-settings">
+                    <div class="setting-row">
+                        <span class="setting-label" data-i18n="format">Format</span>
+                        <select id="outputFormat" class="small-select">
+                            <option value="jpeg">JPEG</option>
+                            <option value="png">PNG</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label" data-i18n="outputSize">Size</span>
+                        <select id="outputSizeMode" class="small-select">
+                            <option value="original" data-i18n="sizeOriginal">Original</option>
+                            <option value="custom" data-i18n="sizeCustom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="setting-row custom-size-row" id="customSizeRow" style="display: none;">
+                        <input type="number" id="customWidth" class="size-input" placeholder="W" min="1">
+                        <span class="size-separator">×</span>
+                        <span class="size-input auto-height" id="autoHeight">-</span>
+                        <span class="size-unit">px</span>
                     </div>
                 </div>
             </div>
 
-            <div class="control-section">
-                <div class="section-title">Actions</div>
+            <div class="control-section section-actions">
+                <div class="section-title" data-i18n="actions">Actions</div>
                 <div class="action-grid">
-                    <button class="action-btn" id="undoBtn">UNDO <span class="shortcut">[Z]</span></button>
-                    <button class="action-btn" id="redoBtn">REDO <span class="shortcut">[Y]</span></button>
-                    <button class="action-btn" id="clearBtn">CLEAR <span class="shortcut">[C]</span></button>
-                    <button class="action-btn" id="resetBtn">RESET <span class="shortcut">[R]</span></button>
-                    <button class="action-btn primary" id="saveBtn">SAVE <span class="shortcut">[S]</span></button>
+                    <button class="action-btn" id="undoBtn"><span data-i18n="undo">UNDO</span> <span class="shortcut">[Z]</span></button>
+                    <button class="action-btn" id="redoBtn"><span data-i18n="redo">REDO</span> <span class="shortcut">[Y]</span></button>
+                    <button class="action-btn" id="clearBtn"><span data-i18n="clear">CLEAR</span> <span class="shortcut">[C]</span></button>
+                    <button class="action-btn" id="resetBtn"><span data-i18n="reset">RESET</span> <span class="shortcut">[R]</span></button>
+                    <button class="action-btn" id="prevBtn2"><span data-i18n="prevShort">PREV</span> <span class="shortcut">[A]</span></button>
+                    <button class="action-btn" id="nextBtn2"><span data-i18n="nextShort">NEXT</span> <span class="shortcut">[D]</span></button>
+                    <button class="action-btn primary" id="saveBtn"><span data-i18n="save">SAVE</span> <span class="shortcut">[S]</span></button>
                 </div>
             </div>
 
             <div class="shortcuts-panel">
-                <div class="section-title">Keyboard Shortcuts</div>
-                <div class="shortcut-row">
-                    <span class="shortcut-key">Space</span>
-                    <span class="shortcut-desc">Save + Next</span>
-                </div>
-                <div class="shortcut-row">
-                    <span class="shortcut-key">A / D</span>
-                    <span class="shortcut-desc">Prev / Next Image</span>
-                </div>
-                <div class="shortcut-row">
-                    <span class="shortcut-key">1-5</span>
-                    <span class="shortcut-desc">Intensity Presets</span>
-                </div>
-                <div class="shortcut-row">
-                    <span class="shortcut-key">Z / Y</span>
-                    <span class="shortcut-desc">Undo / Redo</span>
-                </div>
-                <div class="shortcut-row">
-                    <span class="shortcut-key">[ / ]</span>
-                    <span class="shortcut-desc">Brush Size -/+</span>
-                </div>
-                <div class="shortcut-row">
-                    <span class="shortcut-key">Q / E</span>
-                    <span class="shortcut-desc">Zoom Out / In</span>
-                </div>
-                <div class="shortcut-row">
-                    <span class="shortcut-key">Wheel</span>
-                    <span class="shortcut-desc">Zoom In / Out</span>
+                <div class="section-title" data-i18n="shortcuts">Shortcuts</div>
+                <div class="shortcuts-grid">
+                    <span class="sk">Space</span><span class="sd" data-i18n="saveNext">Save + Next</span>
+                    <span class="sk">[ / ]</span><span class="sd" data-i18n="brushSizePM">Brush Size ±</span>
+                    <span class="sk">Q / E</span><span class="sd" data-i18n="zoomPM">Zoom ±</span>
+                    <span class="sk">Wheel</span><span class="sd" data-i18n="zoom">Zoom</span>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -844,6 +1124,10 @@
                 this.mosaicSize = 12;
                 this.mosaicType = 'pixelate';
                 this.outputFolderHandle = null;
+                this.outputFormat = 'jpeg';
+                this.outputSizeMode = 'original';
+                this.customWidth = 0;
+                this.customHeight = 0;
                 this.zoomLevel = 1;
                 this.baseScale = 1;
                 this.originalWidth = 0;
@@ -856,15 +1140,174 @@
                     2: 5,   // WEAK
                     3: 12,  // MID
                     4: 20,  // STD (標準)
-                    5: 35   // MAX
+                    5: 50   // MAX
                 };
 
                 this.initializeEventListeners();
                 this.initializeKeyboardShortcuts();
                 this.initializeDragDrop();
+                this.initializeThemeToggle();
                 this.updateCursorSize();
                 this.updateButtonStates();
                 this.updateIntensityDisplay();
+            }
+
+            initializeThemeToggle() {
+                const toggle = document.getElementById('themeToggle');
+                const moonIcon = document.getElementById('moonIcon');
+                const sunIcon = document.getElementById('sunIcon');
+
+                // Load saved theme
+                const savedTheme = localStorage.getItem('quizamo-theme');
+                if (savedTheme === 'day') {
+                    document.body.classList.add('day-mode');
+                    toggle.classList.add('day');
+                    moonIcon.classList.remove('active');
+                    sunIcon.classList.add('active');
+                }
+
+                toggle.addEventListener('click', () => {
+                    const isDayMode = document.body.classList.toggle('day-mode');
+                    toggle.classList.toggle('day', isDayMode);
+                    moonIcon.classList.toggle('active', !isDayMode);
+                    sunIcon.classList.toggle('active', isDayMode);
+                    localStorage.setItem('quizamo-theme', isDayMode ? 'day' : 'night');
+                });
+
+                // Language toggle
+                this.initializeLanguageToggle();
+            }
+
+            initializeLanguageToggle() {
+                this.translations = {
+                    en: {
+                        dropHint: 'DROP IMAGES HERE',
+                        dropHintSub: 'or click to select files',
+                        prev: 'PREVIOUS',
+                        next: 'NEXT',
+                        prevShort: 'PREV',
+                        nextShort: 'NEXT',
+                        zoomOut: 'ZOOM -',
+                        zoomIn: 'ZOOM +',
+                        intensityPresets: 'Intensity Presets',
+                        presetMin: 'MIN',
+                        presetWeak: 'WEAK',
+                        presetMid: 'MID',
+                        presetStd: 'STD',
+                        presetMax: 'MAX',
+                        brushSize: 'BRUSH SIZE',
+                        intensity: 'INTENSITY',
+                        typePixelate: 'PIXELATE',
+                        typeBlur: 'GAUSSIAN BLUR',
+                        typeMosaic: 'MOSAIC TILE',
+                        input: 'Input',
+                        output: 'Output',
+                        selectFiles: 'SELECT FILES',
+                        selectFolder: 'SELECT FOLDER',
+                        actions: 'Actions',
+                        undo: 'UNDO',
+                        redo: 'REDO',
+                        clear: 'CLEAR',
+                        reset: 'RESET',
+                        save: 'SAVE',
+                        shortcuts: 'Shortcuts',
+                        saveNext: 'Save + Next',
+                        brushSizePM: 'Brush Size ±',
+                        zoomPM: 'Zoom ±',
+                        zoom: 'Zoom',
+                        loaded: 'Loaded',
+                        images: 'images',
+                        saved: 'SAVED',
+                        autoSaveEnabled: 'Auto-save enabled →',
+                        currentSize: 'Current',
+                        format: 'Format',
+                        outputSize: 'Size',
+                        sizeOriginal: 'Original',
+                        sizeCustom: 'Custom'
+                    },
+                    ja: {
+                        dropHint: '画像をドロップ',
+                        dropHintSub: 'またはクリックして選択',
+                        prev: '前へ',
+                        next: '次へ',
+                        prevShort: '前へ',
+                        nextShort: '次へ',
+                        zoomOut: '縮小',
+                        zoomIn: '拡大',
+                        intensityPresets: '強度プリセット',
+                        presetMin: '最小',
+                        presetWeak: '弱',
+                        presetMid: '中',
+                        presetStd: '標準',
+                        presetMax: '最大',
+                        brushSize: 'ブラシサイズ',
+                        intensity: '強度',
+                        typePixelate: 'ピクセル化',
+                        typeBlur: 'ガウスぼかし',
+                        typeMosaic: 'モザイクタイル',
+                        input: '入力',
+                        output: '出力',
+                        selectFiles: 'ファイル選択',
+                        selectFolder: 'フォルダ選択',
+                        actions: '操作',
+                        undo: '戻す',
+                        redo: 'やり直す',
+                        clear: 'クリア',
+                        reset: 'リセット',
+                        save: '保存',
+                        shortcuts: 'ショートカット',
+                        saveNext: '保存して次へ',
+                        brushSizePM: 'ブラシサイズ ±',
+                        zoomPM: 'ズーム ±',
+                        zoom: 'ズーム',
+                        loaded: '読み込み完了',
+                        images: '枚',
+                        saved: '保存済',
+                        autoSaveEnabled: '自動保存 →',
+                        currentSize: '現在',
+                        format: '形式',
+                        outputSize: 'サイズ',
+                        sizeOriginal: '元のサイズ',
+                        sizeCustom: 'カスタム'
+                    }
+                };
+
+                this.currentLang = localStorage.getItem('quizamo-lang') || 'en';
+
+                const toggle = document.getElementById('langToggle');
+                const enLabel = document.getElementById('enLabel');
+                const jaLabel = document.getElementById('jaLabel');
+
+                // Load saved language
+                if (this.currentLang === 'ja') {
+                    toggle.classList.add('ja');
+                    enLabel.classList.remove('active');
+                    jaLabel.classList.add('active');
+                    this.applyTranslations('ja');
+                }
+
+                toggle.addEventListener('click', () => {
+                    const isJa = toggle.classList.toggle('ja');
+                    this.currentLang = isJa ? 'ja' : 'en';
+                    enLabel.classList.toggle('active', !isJa);
+                    jaLabel.classList.toggle('active', isJa);
+                    localStorage.setItem('quizamo-lang', this.currentLang);
+                    this.applyTranslations(this.currentLang);
+                });
+            }
+
+            applyTranslations(lang) {
+                const t = this.translations[lang];
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if (t[key]) {
+                        el.textContent = t[key];
+                    }
+                });
+            }
+
+            t(key) {
+                return this.translations[this.currentLang][key] || key;
             }
 
             initializeEventListeners() {
@@ -876,6 +1319,32 @@
 
                 // Output folder selection
                 document.getElementById('outputFolderArea').addEventListener('click', () => this.selectOutputFolder());
+
+                // Output settings
+                document.getElementById('outputFormat').addEventListener('change', (e) => {
+                    this.outputFormat = e.target.value;
+                });
+
+                document.getElementById('outputSizeMode').addEventListener('change', (e) => {
+                    this.outputSizeMode = e.target.value;
+                    document.getElementById('customSizeRow').style.display =
+                        this.outputSizeMode === 'custom' ? 'flex' : 'none';
+                    if (this.outputSizeMode === 'custom' && this.originalWidth) {
+                        document.getElementById('customWidth').value = this.originalWidth;
+                        document.getElementById('autoHeight').textContent = this.originalHeight;
+                    }
+                });
+
+                document.getElementById('customWidth').addEventListener('input', (e) => {
+                    const newWidth = parseInt(e.target.value) || 0;
+                    if (newWidth > 0 && this.originalWidth && this.originalHeight) {
+                        const ratio = this.originalHeight / this.originalWidth;
+                        const newHeight = Math.round(newWidth * ratio);
+                        document.getElementById('autoHeight').textContent = newHeight;
+                        this.customWidth = newWidth;
+                        this.customHeight = newHeight;
+                    }
+                });
 
                 // Presets
                 document.querySelectorAll('.preset-btn').forEach(btn => {
@@ -935,6 +1404,8 @@
                 document.getElementById('saveBtn').addEventListener('click', () => this.save());
                 document.getElementById('prevBtn').addEventListener('click', () => this.previousImage());
                 document.getElementById('nextBtn').addEventListener('click', () => this.nextImage());
+                document.getElementById('prevBtn2').addEventListener('click', () => this.previousImage());
+                document.getElementById('nextBtn2').addEventListener('click', () => this.nextImage());
 
                 // Zoom buttons
                 document.getElementById('zoomInBtn').addEventListener('click', () => this.zoomIn());
@@ -1237,6 +1708,18 @@
                 indicator.textContent = `${this.currentIndex + 1} / ${this.images.length}${savedMark}`;
                 indicator.className = this.savedImages.has(this.currentIndex) ? 'indicator saved' : 'indicator';
 
+                // Update current size display
+                document.getElementById('currentSizeDisplay').textContent =
+                    `${this.originalWidth} × ${this.originalHeight}`;
+
+                // Update custom size if in custom mode
+                if (this.outputSizeMode === 'custom') {
+                    document.getElementById('customWidth').value = this.originalWidth;
+                    document.getElementById('autoHeight').textContent = this.originalHeight;
+                    this.customWidth = this.originalWidth;
+                    this.customHeight = this.originalHeight;
+                }
+
                 // Set initial zoom to 100% (fits in view)
                 this.setZoom(1);
 
@@ -1245,8 +1728,12 @@
 
             updateButtonStates() {
                 const hasImages = this.images.length > 0;
-                document.getElementById('prevBtn').disabled = this.currentIndex === 0 || !hasImages;
-                document.getElementById('nextBtn').disabled = this.currentIndex === this.images.length - 1 || !hasImages;
+                const atFirst = this.currentIndex === 0 || !hasImages;
+                const atLast = this.currentIndex === this.images.length - 1 || !hasImages;
+                document.getElementById('prevBtn').disabled = atFirst;
+                document.getElementById('nextBtn').disabled = atLast;
+                document.getElementById('prevBtn2').disabled = atFirst;
+                document.getElementById('nextBtn2').disabled = atLast;
                 document.getElementById('undoBtn').disabled = this.historyStep <= 0;
                 document.getElementById('redoBtn').disabled = this.historyStep >= this.history.length - 1;
                 document.getElementById('clearBtn').disabled = !hasImages;
@@ -1282,17 +1769,27 @@
                 const data = imageData.data;
                 const radius = this.brushSize / 2;
 
+                // 解像度に応じてモザイクサイズを自動スケーリング
+                // 基準: 1920px幅で設定値どおり、それ以外は比率で調整
+                const baseResolution = 1920;
+                const imageSize = Math.max(this.canvas.width, this.canvas.height);
+                const scaleFactor = imageSize / baseResolution;
+                const blockSize = Math.max(1, Math.round(this.mosaicSize * scaleFactor));
+
+                // ブロックの色をキャッシュ（同じブロックを何度も計算しない）
+                const blockCache = new Map();
+
                 for (let y = Math.max(0, centerY - radius); y < Math.min(this.canvas.height, centerY + radius); y++) {
                     for (let x = Math.max(0, centerX - radius); x < Math.min(this.canvas.width, centerX + radius); x++) {
                         const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
 
                         if (distance <= radius) {
                             if (this.mosaicType === 'pixelate') {
-                                this.pixelatePixel(data, Math.floor(x), Math.floor(y), imageData.width);
+                                this.pixelatePixelFast(data, Math.floor(x), Math.floor(y), imageData.width, blockSize, blockCache);
                             } else if (this.mosaicType === 'blur') {
                                 this.blurPixel(data, Math.floor(x), Math.floor(y), imageData.width, imageData.height);
                             } else if (this.mosaicType === 'mosaic') {
-                                this.mosaicPixel(data, Math.floor(x), Math.floor(y), imageData.width);
+                                this.mosaicPixelFast(data, Math.floor(x), Math.floor(y), imageData.width, blockSize, blockCache);
                             }
                         }
                     }
@@ -1301,6 +1798,46 @@
                 this.ctx.putImageData(imageData, 0, 0);
             }
 
+            // 高速版ピクセル化（キャッシュ使用）
+            pixelatePixelFast(data, x, y, width, blockSize, cache) {
+                const blockX = Math.floor(x / blockSize) * blockSize;
+                const blockY = Math.floor(y / blockSize) * blockSize;
+                const cacheKey = `${blockX},${blockY}`;
+
+                let color;
+                if (cache.has(cacheKey)) {
+                    color = cache.get(cacheKey);
+                } else {
+                    // ブロックの平均色を計算
+                    let r = 0, g = 0, b = 0, count = 0;
+                    const maxY = Math.min(blockY + blockSize, this.canvas.height);
+                    const maxX = Math.min(blockX + blockSize, this.canvas.width);
+
+                    for (let by = blockY; by < maxY; by++) {
+                        for (let bx = blockX; bx < maxX; bx++) {
+                            const idx = (by * width + bx) * 4;
+                            r += data[idx];
+                            g += data[idx + 1];
+                            b += data[idx + 2];
+                            count++;
+                        }
+                    }
+
+                    color = {
+                        r: Math.floor(r / count),
+                        g: Math.floor(g / count),
+                        b: Math.floor(b / count)
+                    };
+                    cache.set(cacheKey, color);
+                }
+
+                const idx = (y * width + x) * 4;
+                data[idx] = color.r;
+                data[idx + 1] = color.g;
+                data[idx + 2] = color.b;
+            }
+
+            // 旧版（互換性のため残す）
             pixelatePixel(data, x, y, width) {
                 const blockSize = Math.max(1, this.mosaicSize);
                 const blockX = Math.floor(x / blockSize) * blockSize;
@@ -1356,6 +1893,50 @@
                     data[idx + 1] = Math.floor(g / count);
                     data[idx + 2] = Math.floor(b / count);
                 }
+            }
+
+            // 高速版モザイクタイル（キャッシュ使用）
+            mosaicPixelFast(data, x, y, width, blockSize, cache) {
+                const tileX = Math.floor(x / blockSize) * blockSize;
+                const tileY = Math.floor(y / blockSize) * blockSize;
+                const cacheKey = `m${tileX},${tileY}`;
+
+                let color;
+                if (cache.has(cacheKey)) {
+                    color = cache.get(cacheKey);
+                } else {
+                    let r = 0, g = 0, b = 0, count = 0;
+                    const maxY = Math.min(tileY + blockSize, this.canvas.height);
+                    const maxX = Math.min(tileX + blockSize, this.canvas.width);
+
+                    for (let ty = tileY; ty < maxY; ty++) {
+                        for (let tx = tileX; tx < maxX; tx++) {
+                            const idx = (ty * width + tx) * 4;
+                            r += data[idx];
+                            g += data[idx + 1];
+                            b += data[idx + 2];
+                            count++;
+                        }
+                    }
+
+                    r = Math.floor(r / count);
+                    g = Math.floor(g / count);
+                    b = Math.floor(b / count);
+
+                    // バリエーションを追加
+                    const variation = blockSize > 2 ? 20 : 5;
+                    color = {
+                        r: Math.max(0, Math.min(255, r + (Math.random() - 0.5) * variation)),
+                        g: Math.max(0, Math.min(255, g + (Math.random() - 0.5) * variation)),
+                        b: Math.max(0, Math.min(255, b + (Math.random() - 0.5) * variation))
+                    };
+                    cache.set(cacheKey, color);
+                }
+
+                const idx = (y * width + x) * 4;
+                data[idx] = color.r;
+                data[idx + 1] = color.g;
+                data[idx + 2] = color.b;
             }
 
             mosaicPixel(data, x, y, width) {
@@ -1451,8 +2032,8 @@
                     });
 
                     const folderName = this.outputFolderHandle.name;
-                    document.getElementById('outputFolderText').textContent = folderName;
-                    document.getElementById('outputStatus').textContent = 'AUTO-SAVE ENABLED';
+                    document.getElementById('outputFolderText').textContent = '✓ ' + folderName;
+                    document.getElementById('folderPath').textContent = 'Auto-save enabled → /' + folderName + '/';
                     this.showStatus(`Output folder: ${folderName}`, 'success');
                 } catch (err) {
                     if (err.name !== 'AbortError') {
@@ -1466,13 +2047,33 @@
                 if (this.images.length === 0) return;
 
                 try {
+                    // Determine output canvas (original or resized)
+                    let outputCanvas = this.canvas;
+
+                    if (this.outputSizeMode === 'custom' && this.customWidth > 0 && this.customHeight > 0) {
+                        // Create resized canvas
+                        outputCanvas = document.createElement('canvas');
+                        outputCanvas.width = this.customWidth;
+                        outputCanvas.height = this.customHeight;
+                        const ctx = outputCanvas.getContext('2d');
+                        ctx.drawImage(this.canvas, 0, 0, this.customWidth, this.customHeight);
+                    }
+
+                    // Determine format and extension
+                    const mimeType = this.outputFormat === 'png' ? 'image/png' : 'image/jpeg';
+                    const ext = this.outputFormat === 'png' ? 'png' : 'jpg';
+
                     const blob = await new Promise(resolve => {
-                        this.canvas.toBlob(resolve, 'image/png');
+                        if (this.outputFormat === 'png') {
+                            outputCanvas.toBlob(resolve, mimeType);
+                        } else {
+                            outputCanvas.toBlob(resolve, mimeType, 0.95);
+                        }
                     });
 
                     const originalName = this.images[this.currentIndex].name;
                     const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
-                    const fileName = `mosaic_${nameWithoutExt}.png`;
+                    const fileName = `mosaic_${nameWithoutExt}.${ext}`;
 
                     // If output folder is selected, save directly to folder
                     if (this.outputFolderHandle) {
