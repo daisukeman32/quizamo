@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QUIZAMO - Mosaic Tool</title>
+    <title>QUIZAMO Web - Mosaic Tool</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600&display=swap');
-        
+
         * {
             margin: 0;
             padding: 0;
@@ -56,6 +56,14 @@
             color: var(--text-primary);
         }
 
+        .logo-sub {
+            font-size: 10px;
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-left: 10px;
+            letter-spacing: 1px;
+        }
+
         .indicator {
             position: absolute;
             left: 50%;
@@ -67,7 +75,13 @@
         }
 
         .indicator.saved {
-            color: var(--text-primary);
+            color: #00ff88;
+        }
+
+        .shortcuts-hint {
+            font-size: 9px;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
         }
 
         /* Main Container */
@@ -96,7 +110,25 @@
             align-items: center;
             min-height: 600px;
             flex: 1;
-            overflow: hidden;
+            overflow: auto;
+        }
+
+        .canvas-wrapper.dragover {
+            border-color: var(--text-primary);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .drop-hint {
+            position: absolute;
+            font-size: 14px;
+            color: var(--text-secondary);
+            letter-spacing: 2px;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .drop-hint.hidden {
+            display: none;
         }
 
         .canvas-wrapper::before {
@@ -106,7 +138,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: 
+            background:
                 repeating-linear-gradient(
                     0deg,
                     transparent,
@@ -125,8 +157,6 @@
         }
 
         canvas {
-            max-width: 100%;
-            max-height: 600px;
             background: #000;
             cursor: none;
             position: relative;
@@ -179,6 +209,12 @@
             overflow: hidden;
         }
 
+        .nav-btn .shortcut {
+            font-size: 9px;
+            opacity: 0.5;
+            margin-left: 8px;
+        }
+
         .nav-btn::before {
             content: '';
             position: absolute;
@@ -211,7 +247,7 @@
 
         /* Controls Panel */
         .controls-panel {
-            width: 220px;
+            width: 320px;
             display: flex;
             flex-direction: column;
             gap: 15px;
@@ -220,22 +256,22 @@
         .control-section {
             background: var(--secondary);
             border: 1px solid var(--border);
-            padding: 12px;
+            padding: 16px;
         }
 
         .section-title {
-            font-size: 9px;
-            font-weight: 500;
-            letter-spacing: 1.2px;
-            color: var(--text-secondary);
-            margin-bottom: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            color: var(--text-primary);
+            margin-bottom: 14px;
             text-transform: uppercase;
         }
 
         /* File Input */
         .file-input-area {
             border: 1px dashed var(--border);
-            padding: 8px;
+            padding: 15px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -261,8 +297,8 @@
         }
 
         .upload-icon {
-            width: 16px;
-            height: 16px;
+            width: 24px;
+            height: 24px;
             position: relative;
             margin: 0 auto;
         }
@@ -273,32 +309,72 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 12px;
-            height: 12px;
+            width: 20px;
+            height: 20px;
             border: 1px solid var(--text-secondary);
             border-radius: 50%;
         }
 
         .upload-icon::after {
-            content: '';
+            content: '+';
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 1px;
-            height: 6px;
-            background: var(--text-secondary);
+            font-size: 14px;
+            color: var(--text-secondary);
         }
 
         .file-input-text {
-            font-size: 9px;
-            color: var(--text-secondary);
-            letter-spacing: 0.3px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            letter-spacing: 0.5px;
         }
 
         .file-count {
-            font-size: 8px;
+            font-size: 11px;
+            font-weight: 500;
+            color: #00ff88;
+            margin-top: 5px;
+        }
+
+        /* Presets */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px;
+            margin-bottom: 15px;
+        }
+
+        .preset-btn {
+            padding: 10px 6px;
+            background: var(--primary);
+            border: 1px solid var(--border);
             color: var(--text-primary);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--text-primary);
+            background: var(--hover);
+        }
+
+        .preset-btn.active {
+            background: var(--text-primary);
+            color: var(--primary);
+            border-color: var(--text-primary);
+        }
+
+        .preset-btn .key {
+            display: block;
+            font-size: 9px;
+            opacity: 0.7;
             margin-top: 3px;
         }
 
@@ -319,17 +395,21 @@
         }
 
         .slider-name {
-            font-size: 9px;
-            font-weight: 400;
-            color: var(--text-secondary);
-            letter-spacing: 0.3px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #cccccc;
+            letter-spacing: 0.5px;
         }
 
         .slider-value {
-            font-size: 11px;
-            font-weight: 200;
+            font-size: 14px;
+            font-weight: 600;
             color: var(--text-primary);
             font-variant-numeric: tabular-nums;
+        }
+
+        .slider-value.minimal {
+            color: #00ff88;
         }
 
         .slider-track {
@@ -364,21 +444,6 @@
             box-shadow: 0 0 10px rgba(255,255,255,0.3);
         }
 
-        input[type="range"]::-moz-range-thumb {
-            width: 12px;
-            height: 12px;
-            background: var(--text-primary);
-            cursor: pointer;
-            border-radius: 50%;
-            border: none;
-            transition: all 0.2s ease;
-        }
-
-        input[type="range"]::-moz-range-thumb:hover {
-            transform: scale(1.2);
-            box-shadow: 0 0 10px rgba(255,255,255,0.3);
-        }
-
         /* Select */
         .select-wrapper {
             position: relative;
@@ -395,7 +460,6 @@
             letter-spacing: 0.3px;
             cursor: pointer;
             -webkit-appearance: none;
-            -moz-appearance: none;
             appearance: none;
             transition: all 0.3s ease;
         }
@@ -433,16 +497,22 @@
         }
 
         .action-btn {
-            padding: 10px;
+            padding: 12px;
             background: var(--secondary);
             border: none;
-            color: var(--text-secondary);
-            font-size: 8px;
-            font-weight: 400;
+            color: var(--text-primary);
+            font-size: 11px;
+            font-weight: 600;
             letter-spacing: 0.5px;
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: uppercase;
+        }
+
+        .action-btn .shortcut {
+            font-size: 9px;
+            opacity: 0.6;
+            margin-left: 4px;
         }
 
         .action-btn:hover:not(:disabled) {
@@ -463,7 +533,39 @@
         }
 
         .action-btn.primary:hover:not(:disabled) {
-            background: var(--text-secondary);
+            background: #00ff88;
+        }
+
+        /* Keyboard Shortcuts Panel */
+        .shortcuts-panel {
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            padding: 16px;
+        }
+
+        .shortcut-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .shortcut-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .shortcut-key {
+            color: var(--text-primary);
+            background: var(--primary);
+            padding: 3px 8px;
+            border: 1px solid var(--border);
+            font-family: monospace;
+            font-weight: 600;
+        }
+
+        .shortcut-desc {
+            color: #cccccc;
+            font-weight: 500;
         }
 
         /* Loading State */
@@ -518,6 +620,7 @@
             color: var(--text-secondary);
             display: none;
             animation: slideUp 0.3s ease;
+            z-index: 10000;
         }
 
         @keyframes slideUp {
@@ -532,13 +635,13 @@
         }
 
         .status-bar.success {
-            border-color: #00ff00;
-            color: #00ff00;
+            border-color: #00ff88;
+            color: #00ff88;
         }
 
         .status-bar.error {
-            border-color: #ff0000;
-            color: #ff0000;
+            border-color: #ff4444;
+            color: #ff4444;
         }
 
         /* Responsive */
@@ -546,54 +649,93 @@
             .main-container {
                 flex-direction: column;
             }
-            
+
             .controls-panel {
                 width: 100%;
                 order: -1;
+            }
+
+            .shortcuts-hint {
+                display: none;
             }
         }
     </style>
 </head>
 <body>
     <header class="header">
-        <div class="logo">QUIZAMO</div>
-        <div class="indicator" id="indicator">NO IMAGE</div>
+        <div>
+            <span class="logo">QUIZAMO</span>
+            <span class="logo-sub">WEB</span>
+        </div>
+        <div class="indicator" id="indicator">DROP IMAGES HERE</div>
+        <div class="shortcuts-hint">
+            [A] Prev [D] Next [S] Save [Space] Save+Next
+        </div>
     </header>
 
     <div class="main-container">
         <div class="canvas-section">
-            <div class="canvas-wrapper">
-                <canvas id="canvas"></canvas>
+            <div class="canvas-wrapper" id="dropZone">
+                <div class="drop-hint" id="dropHint">
+                    DROP IMAGES HERE<br>
+                    <span style="font-size: 10px; opacity: 0.5;">or click to select files</span>
+                </div>
+                <canvas id="canvas" style="display: none;"></canvas>
                 <div class="cursor-preview" id="cursorPreview"></div>
             </div>
-            
+
             <div class="navigation">
-                <button class="nav-btn" id="prevBtn">PREVIOUS</button>
-                <button class="nav-btn" id="nextBtn">NEXT</button>
+                <button class="nav-btn" id="prevBtn">PREVIOUS <span class="shortcut">[A]</span></button>
+                <button class="nav-btn" id="zoomOutBtn">ZOOM - <span class="shortcut">[Q]</span></button>
+                <button class="nav-btn" id="zoomResetBtn">100%</button>
+                <button class="nav-btn" id="zoomInBtn">ZOOM + <span class="shortcut">[E]</span></button>
+                <button class="nav-btn" id="nextBtn">NEXT <span class="shortcut">[D]</span></button>
             </div>
         </div>
 
         <div class="controls-panel">
             <div class="control-section">
-                <div class="section-title">Parameters</div>
-                
+                <div class="section-title">Intensity Presets</div>
+                <div class="preset-grid">
+                    <button class="preset-btn" data-value="1" id="preset1">
+                        MIN
+                        <span class="key">[1]</span>
+                    </button>
+                    <button class="preset-btn" data-value="5" id="preset2">
+                        WEAK
+                        <span class="key">[2]</span>
+                    </button>
+                    <button class="preset-btn active" data-value="12" id="preset3">
+                        MID
+                        <span class="key">[3]</span>
+                    </button>
+                    <button class="preset-btn" data-value="20" id="preset4">
+                        STD
+                        <span class="key">[4]</span>
+                    </button>
+                    <button class="preset-btn" data-value="35" id="preset5">
+                        MAX
+                        <span class="key">[5]</span>
+                    </button>
+                </div>
+
                 <div class="slider-group">
                     <div class="slider-label">
                         <span class="slider-name">BRUSH SIZE</span>
-                        <span class="slider-value" id="brushSizeValue">20</span>
+                        <span class="slider-value" id="brushSizeValue">30</span>
                     </div>
                     <div class="slider-track">
-                        <input type="range" id="brushSize" min="5" max="60" value="20">
+                        <input type="range" id="brushSize" min="5" max="100" value="30">
                     </div>
                 </div>
 
                 <div class="slider-group">
                     <div class="slider-label">
                         <span class="slider-name">INTENSITY</span>
-                        <span class="slider-value" id="mosaicSizeValue">10</span>
+                        <span class="slider-value" id="mosaicSizeValue">12</span>
                     </div>
                     <div class="slider-track">
-                        <input type="range" id="mosaicSize" min="3" max="25" value="10">
+                        <input type="range" id="mosaicSize" min="1" max="40" value="12">
                     </div>
                 </div>
 
@@ -607,18 +749,24 @@
             </div>
 
             <div class="control-section">
-                <div class="section-title">Source</div>
-                <div class="file-input-area" id="selectSourceFolder">
+                <div class="section-title">Source Images</div>
+                <div class="file-input-area" id="fileInputArea">
                     <label class="file-input-label">
+                        <input type="file" id="fileInput" multiple accept="image/*">
                         <div class="upload-icon"></div>
-                        <div class="file-input-text" id="sourceFolderText">SELECT FOLDER</div>
+                        <div class="file-input-text">SELECT FILES</div>
                         <div class="file-count" id="fileCount"></div>
                     </label>
                 </div>
-                <div style="margin-top: 15px;">
-                    <div class="section-title">Output</div>
-                    <div class="file-input-area" id="selectOutputFolder" style="padding: 15px;">
+            </div>
+
+            <div class="control-section">
+                <div class="section-title">Output Folder</div>
+                <div class="file-input-area" id="outputFolderArea">
+                    <div class="file-input-label">
+                        <div class="upload-icon"></div>
                         <div class="file-input-text" id="outputFolderText">SELECT FOLDER</div>
+                        <div class="file-count" id="outputStatus"></div>
                     </div>
                 </div>
             </div>
@@ -626,11 +774,43 @@
             <div class="control-section">
                 <div class="section-title">Actions</div>
                 <div class="action-grid">
-                    <button class="action-btn" id="undoBtn">UNDO</button>
-                    <button class="action-btn" id="redoBtn">REDO</button>
-                    <button class="action-btn" id="clearBtn">CLEAR</button>
-                    <button class="action-btn" id="resetBtn">RESET</button>
-                    <button class="action-btn primary" id="saveBtn">SAVE</button>
+                    <button class="action-btn" id="undoBtn">UNDO <span class="shortcut">[Z]</span></button>
+                    <button class="action-btn" id="redoBtn">REDO <span class="shortcut">[Y]</span></button>
+                    <button class="action-btn" id="clearBtn">CLEAR <span class="shortcut">[C]</span></button>
+                    <button class="action-btn" id="resetBtn">RESET <span class="shortcut">[R]</span></button>
+                    <button class="action-btn primary" id="saveBtn">SAVE <span class="shortcut">[S]</span></button>
+                </div>
+            </div>
+
+            <div class="shortcuts-panel">
+                <div class="section-title">Keyboard Shortcuts</div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">Space</span>
+                    <span class="shortcut-desc">Save + Next</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">A / D</span>
+                    <span class="shortcut-desc">Prev / Next Image</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">1-5</span>
+                    <span class="shortcut-desc">Intensity Presets</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">Z / Y</span>
+                    <span class="shortcut-desc">Undo / Redo</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">[ / ]</span>
+                    <span class="shortcut-desc">Brush Size -/+</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">Q / E</span>
+                    <span class="shortcut-desc">Zoom Out / In</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="shortcut-key">Wheel</span>
+                    <span class="shortcut-desc">Zoom In / Out</span>
                 </div>
             </div>
         </div>
@@ -659,71 +839,79 @@
                 this.historyStep = -1;
                 this.savedImages = new Set();
                 this.cursorPreview = document.getElementById('cursorPreview');
-                this.sourceFolderPath = null;
-                this.outputFolderPath = null;
-                
-                this.brushSize = 20;
-                this.mosaicSize = 10;
+
+                this.brushSize = 30;
+                this.mosaicSize = 12;
                 this.mosaicType = 'pixelate';
-                
+                this.outputFolderHandle = null;
+                this.zoomLevel = 1;
+                this.baseScale = 1;
+                this.originalWidth = 0;
+                this.originalHeight = 0;
+                this.minZoom = 0.5;
+                this.maxZoom = 4;
+
+                this.presetValues = {
+                    1: 1,   // MIN - ほぼ無修正
+                    2: 5,   // WEAK
+                    3: 12,  // MID
+                    4: 20,  // STD (標準)
+                    5: 35   // MAX
+                };
+
                 this.initializeEventListeners();
-                
-                // Check for Electron API after a short delay
-                setTimeout(() => {
-                    this.isElectron = typeof window.electronAPI !== 'undefined';
-                    console.log('Electron check:', this.isElectron);
-                    console.log('electronAPI:', window.electronAPI);
-                }, 100);
+                this.initializeKeyboardShortcuts();
+                this.initializeDragDrop();
+                this.updateCursorSize();
+                this.updateButtonStates();
+                this.updateIntensityDisplay();
             }
 
             initializeEventListeners() {
-                // Folder selection
-                document.getElementById('selectSourceFolder').addEventListener('click', () => {
-                    console.log('Source folder clicked');
-                    this.selectSourceFolder();
+                // File input
+                document.getElementById('fileInput').addEventListener('change', (e) => this.loadImages(e));
+                document.getElementById('fileInputArea').addEventListener('click', () => {
+                    document.getElementById('fileInput').click();
                 });
-                
-                document.getElementById('selectOutputFolder').addEventListener('click', () => {
-                    console.log('Output folder clicked');  
-                    this.selectOutputFolder();
+
+                // Output folder selection
+                document.getElementById('outputFolderArea').addEventListener('click', () => this.selectOutputFolder());
+
+                // Presets
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const value = parseInt(btn.dataset.value);
+                        this.setIntensity(value);
+                    });
                 });
-                
-                // Fallback for web version
-                const fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.webkitdirectory = true;
-                fileInput.directory = true;
-                fileInput.multiple = true;
-                fileInput.accept = 'image/*';
-                fileInput.style.display = 'none';
-                document.body.appendChild(fileInput);
-                fileInput.addEventListener('change', (e) => this.loadWebImages(e));
-                
+
                 // Controls
                 document.getElementById('brushSize').addEventListener('input', (e) => {
                     this.brushSize = parseInt(e.target.value);
                     document.getElementById('brushSizeValue').textContent = this.brushSize;
                     this.updateCursorSize();
                 });
-                
+
                 document.getElementById('mosaicSize').addEventListener('input', (e) => {
                     this.mosaicSize = parseInt(e.target.value);
-                    document.getElementById('mosaicSizeValue').textContent = this.mosaicSize;
+                    this.updateIntensityDisplay();
+                    this.updatePresetButtons();
                 });
-                
+
                 document.getElementById('mosaicType').addEventListener('change', (e) => {
                     this.mosaicType = e.target.value;
                 });
-                
+
                 // Canvas events
                 this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
                 this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
                 this.canvas.addEventListener('mouseup', () => this.stopDrawing());
                 this.canvas.addEventListener('mouseleave', () => this.hideCursor());
                 this.canvas.addEventListener('mouseenter', () => this.showCursor());
-                
+
                 // Touch events
                 this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
                     const touch = e.touches[0];
                     this.updateCursorPosition(touch);
                     this.startDrawing(touch);
@@ -738,7 +926,7 @@
                     this.stopDrawing();
                     this.hideCursor();
                 });
-                
+
                 // Buttons
                 document.getElementById('undoBtn').addEventListener('click', () => this.undo());
                 document.getElementById('redoBtn').addEventListener('click', () => this.redo());
@@ -747,10 +935,185 @@
                 document.getElementById('saveBtn').addEventListener('click', () => this.save());
                 document.getElementById('prevBtn').addEventListener('click', () => this.previousImage());
                 document.getElementById('nextBtn').addEventListener('click', () => this.nextImage());
-                
-                // Initialize
+
+                // Zoom buttons
+                document.getElementById('zoomInBtn').addEventListener('click', () => this.zoomIn());
+                document.getElementById('zoomOutBtn').addEventListener('click', () => this.zoomOut());
+                document.getElementById('zoomResetBtn').addEventListener('click', () => this.zoomReset());
+
+                // Mouse wheel zoom
+                this.canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        this.zoomIn();
+                    } else {
+                        this.zoomOut();
+                    }
+                }, { passive: false });
+            }
+
+            initializeKeyboardShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    // Don't trigger shortcuts when typing in inputs
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+                    switch(e.key.toLowerCase()) {
+                        case ' ':
+                            e.preventDefault();
+                            this.saveAndNext();
+                            break;
+                        case 'a':
+                            e.preventDefault();
+                            this.previousImage();
+                            break;
+                        case 'd':
+                            e.preventDefault();
+                            this.nextImage();
+                            break;
+                        case 's':
+                            e.preventDefault();
+                            this.save();
+                            break;
+                        case 'z':
+                            e.preventDefault();
+                            this.undo();
+                            break;
+                        case 'y':
+                            e.preventDefault();
+                            this.redo();
+                            break;
+                        case 'c':
+                            e.preventDefault();
+                            this.clear();
+                            break;
+                        case 'r':
+                            e.preventDefault();
+                            this.reset();
+                            break;
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                            e.preventDefault();
+                            this.setIntensity(this.presetValues[parseInt(e.key)]);
+                            break;
+                        case '[':
+                            e.preventDefault();
+                            this.adjustBrushSize(-5);
+                            break;
+                        case ']':
+                            e.preventDefault();
+                            this.adjustBrushSize(5);
+                            break;
+                        case 'q':
+                            e.preventDefault();
+                            this.zoomOut();
+                            break;
+                        case 'e':
+                            e.preventDefault();
+                            this.zoomIn();
+                            break;
+                    }
+                });
+            }
+
+            initializeDragDrop() {
+                const dropZone = document.getElementById('dropZone');
+
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+
+                dropZone.addEventListener('dragover', () => {
+                    dropZone.classList.add('dragover');
+                });
+
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('dragover');
+                });
+
+                dropZone.addEventListener('drop', (e) => {
+                    dropZone.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.loadFilesArray(Array.from(files));
+                    }
+                });
+
+                // Click on drop zone to select files
+                dropZone.addEventListener('click', (e) => {
+                    if (e.target === dropZone || e.target.id === 'dropHint') {
+                        document.getElementById('fileInput').click();
+                    }
+                });
+            }
+
+            setIntensity(value) {
+                this.mosaicSize = value;
+                document.getElementById('mosaicSize').value = value;
+                this.updateIntensityDisplay();
+                this.updatePresetButtons();
+            }
+
+            adjustBrushSize(delta) {
+                this.brushSize = Math.max(5, Math.min(100, this.brushSize + delta));
+                document.getElementById('brushSize').value = this.brushSize;
+                document.getElementById('brushSizeValue').textContent = this.brushSize;
                 this.updateCursorSize();
-                this.updateButtonStates();
+            }
+
+            zoomIn() {
+                this.setZoom(this.zoomLevel * 1.25);
+            }
+
+            zoomOut() {
+                this.setZoom(this.zoomLevel / 1.25);
+            }
+
+            zoomReset() {
+                // Toggle between 100% (fit view) and 200% (pixel-level detail)
+                if (this.zoomLevel >= 2) {
+                    this.setZoom(1);
+                } else {
+                    this.setZoom(2);
+                }
+            }
+
+            setZoom(level) {
+                this.zoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, level));
+
+                // Calculate display size based on original size, baseScale, and zoom
+                const displayWidth = this.originalWidth * (this.baseScale || 1) * this.zoomLevel;
+                const displayHeight = this.originalHeight * (this.baseScale || 1) * this.zoomLevel;
+
+                // Use CSS width/height instead of transform for proper layout
+                this.canvas.style.width = displayWidth + 'px';
+                this.canvas.style.height = displayHeight + 'px';
+
+                const percentage = Math.round(this.zoomLevel * 100);
+                document.getElementById('zoomResetBtn').textContent = `${percentage}%`;
+            }
+
+            updateIntensityDisplay() {
+                const display = document.getElementById('mosaicSizeValue');
+                display.textContent = this.mosaicSize;
+
+                if (this.mosaicSize <= 2) {
+                    display.classList.add('minimal');
+                } else {
+                    display.classList.remove('minimal');
+                }
+            }
+
+            updatePresetButtons() {
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    const value = parseInt(btn.dataset.value);
+                    btn.classList.toggle('active', value === this.mosaicSize);
+                });
             }
 
             handleMouseMove(e) {
@@ -762,7 +1125,7 @@
                 const rect = this.canvas.getBoundingClientRect();
                 const x = e.clientX;
                 const y = e.clientY;
-                
+
                 if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
                     const size = this.brushSize;
                     this.cursorPreview.style.left = (x - size/2) + 'px';
@@ -780,224 +1143,130 @@
             }
 
             showCursor() {
-                this.cursorPreview.style.display = 'block';
+                if (this.images.length > 0) {
+                    this.cursorPreview.style.display = 'block';
+                }
             }
 
             hideCursor() {
                 this.cursorPreview.style.display = 'none';
             }
 
-            async selectSourceFolder() {
-                try {
-                    console.log('selectSourceFolder called');
-                    
-                    const isElectronRuntime = typeof window.electronAPI !== 'undefined';
-                    console.log('isElectron (runtime check):', isElectronRuntime);
-                    
-                    if (!isElectronRuntime || !window.electronAPI) {
-                        console.log('ElectronAPI not available, using fallback');
-                        const fileInput = document.querySelector('input[type="file"][webkitdirectory]');
-                        if (fileInput) {
-                            fileInput.click();
-                            return;
-                        }
-                        this.showStatus('File system access not available', 'error');
-                        return;
-                    }
-                    
-                    console.log('Calling electronAPI.selectFolder()');
-                    const folderPath = await window.electronAPI.selectFolder();
-                    console.log('Selected folder:', folderPath);
-                    
-                    if (folderPath) {
-                        this.sourceFolderPath = folderPath;
-                        const folderName = folderPath.split(/[\\\\/]/).pop();
-                        document.getElementById('sourceFolderText').textContent = folderName || 'FOLDER SELECTED';
-                        
-                        document.getElementById('loading').style.display = 'flex';
-                        console.log('Reading folder:', folderPath);
-                        const images = await window.electronAPI.readFolder(folderPath);
-                        console.log('Images found:', images.length);
-                        
-                        if (images.length === 0) {
-                            document.getElementById('loading').style.display = 'none';
-                            this.showStatus('No image files found in folder', 'error');
-                            return;
-                        }
-                        
-                        this.images = [];
-                        for (const imageData of images) {
-                            const img = new Image();
-                            await new Promise((resolve) => {
-                                img.onload = () => {
-                                    this.images.push({
-                                        img: img,
-                                        name: imageData.name,
-                                        path: imageData.path,
-                                        data: imageData.data
-                                    });
-                                    resolve();
-                                };
-                                img.onerror = () => {
-                                    console.error('Failed to load image:', imageData.name);
-                                    resolve();
-                                };
-                                img.src = imageData.data;
+            async loadImages(event) {
+                const files = Array.from(event.target.files).filter(file =>
+                    file.type.startsWith('image/')
+                );
+                this.loadFilesArray(files);
+            }
+
+            async loadFilesArray(files) {
+                const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+                if (imageFiles.length === 0) {
+                    this.showStatus('No image files found', 'error');
+                    return;
+                }
+
+                document.getElementById('loading').style.display = 'flex';
+                this.images = [];
+                this.savedImages = new Set();
+
+                for (const file of imageFiles) {
+                    const img = new Image();
+                    const url = URL.createObjectURL(file);
+
+                    await new Promise((resolve) => {
+                        img.onload = () => {
+                            this.images.push({
+                                img: img,
+                                url: url,
+                                name: file.name,
+                                file: file
                             });
-                        }
-                        
-                        document.getElementById('loading').style.display = 'none';
-                        document.getElementById('fileCount').textContent = `${this.images.length} IMAGES LOADED`;
-                        
-                        if (this.images.length > 0) {
-                            this.currentIndex = 0;
-                            this.displayImage();
-                            this.showStatus(`Loaded ${this.images.length} images`, 'success');
-                        }
-                    } else {
-                        console.log('No folder selected');
-                    }
-                } catch (error) {
-                    console.error('Error in selectSourceFolder:', error);
-                    this.showStatus('Error: ' + error.message, 'error');
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            console.error('Failed to load image:', file.name);
+                            resolve();
+                        };
+                        img.src = url;
+                    });
                 }
-            }
-            
-            async selectOutputFolder() {
-                try {
-                    console.log('selectOutputFolder called');
-                    
-                    const isElectronRuntime = typeof window.electronAPI !== 'undefined';
-                    if (!isElectronRuntime || !window.electronAPI) {
-                        this.showStatus('Output folder selection requires Electron', 'error');
-                        return;
-                    }
-                    
-                    const folderPath = await window.electronAPI.selectOutputFolder();
-                    console.log('Selected output folder:', folderPath);
-                    
-                    if (folderPath) {
-                        this.outputFolderPath = folderPath;
-                        const folderName = folderPath.split(/[\\\\/]/).pop();
-                        document.getElementById('outputFolderText').textContent = folderName || 'OUTPUT SELECTED';
-                        this.showStatus('Output folder selected', 'success');
-                    }
-                } catch (error) {
-                    console.error('Error selecting output folder:', error);
-                    this.showStatus('Error selecting output folder', 'error');
-                }
-            }
-            
-            async loadWebImages(event) {
-                try {
-                    const files = Array.from(event.target.files).filter(file => 
-                        file.type.startsWith('image/')
-                    );
-                    
-                    if (files.length === 0) {
-                        this.showStatus('No image files found', 'error');
-                        return;
-                    }
-                    
-                    document.getElementById('loading').style.display = 'flex';
-                    this.images = [];
-                    
-                    for (const file of files) {
-                        const img = new Image();
-                        const url = URL.createObjectURL(file);
-                        
-                        await new Promise((resolve) => {
-                            img.onload = () => {
-                                this.images.push({
-                                    img: img,
-                                    url: url,
-                                    name: file.name,
-                                    file: file
-                                });
-                                resolve();
-                            };
-                            img.onerror = () => {
-                                console.error('Failed to load image:', file.name);
-                                resolve();
-                            };
-                            img.src = url;
-                        });
-                    }
-                    
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('fileCount').textContent = `${this.images.length} IMAGES LOADED`;
-                    
-                    if (this.images.length > 0) {
-                        this.currentIndex = 0;
-                        this.displayImage();
-                        this.showStatus(`Loaded ${this.images.length} images`, 'success');
-                    }
-                } catch (error) {
-                    console.error('Error loading web images:', error);
-                    this.showStatus('Error loading images', 'error');
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('fileCount').textContent = `${this.images.length} IMAGES`;
+                document.getElementById('dropHint').classList.add('hidden');
+                this.canvas.style.display = 'block';
+
+                if (this.images.length > 0) {
+                    this.currentIndex = 0;
+                    this.displayImage();
+                    this.showStatus(`Loaded ${this.images.length} images`, 'success');
                 }
             }
 
             displayImage() {
                 if (this.images.length === 0) return;
-                
+
                 const imageData = this.images[this.currentIndex];
                 this.currentImage = imageData.img;
-                
-                const maxWidth = 800;
-                const maxHeight = 600;
-                let width = this.currentImage.width;
-                let height = this.currentImage.height;
-                
-                if (width > maxWidth) {
-                    height = (maxWidth / width) * height;
-                    width = maxWidth;
-                }
-                
-                if (height > maxHeight) {
-                    width = (maxHeight / height) * width;
-                    height = maxHeight;
-                }
-                
-                this.canvas.width = width;
-                this.canvas.height = height;
-                
-                this.ctx.drawImage(this.currentImage, 0, 0, width, height);
-                this.originalImageData = this.ctx.getImageData(0, 0, width, height);
-                
-                this.history = [this.ctx.getImageData(0, 0, width, height)];
+
+                // Store original dimensions
+                this.originalWidth = this.currentImage.width;
+                this.originalHeight = this.currentImage.height;
+
+                // Canvas uses original image size for full quality
+                this.canvas.width = this.originalWidth;
+                this.canvas.height = this.originalHeight;
+
+                // Calculate base scale to fit in view (this is zoom = 100% display)
+                const maxDisplayWidth = 900;
+                const maxDisplayHeight = 650;
+                const scaleX = maxDisplayWidth / this.originalWidth;
+                const scaleY = maxDisplayHeight / this.originalHeight;
+                this.baseScale = Math.min(scaleX, scaleY, 1);
+
+                this.ctx.drawImage(this.currentImage, 0, 0, this.originalWidth, this.originalHeight);
+                this.originalImageData = this.ctx.getImageData(0, 0, this.originalWidth, this.originalHeight);
+
+                this.history = [this.ctx.getImageData(0, 0, this.originalWidth, this.originalHeight)];
                 this.historyStep = 0;
-                
+
                 const indicator = document.getElementById('indicator');
-                const savedMark = this.savedImages.has(this.currentIndex);
-                indicator.textContent = `${this.currentIndex + 1} / ${this.images.length}`;
-                indicator.className = savedMark ? 'indicator saved' : 'indicator';
-                
+                const savedMark = this.savedImages.has(this.currentIndex) ? ' SAVED' : '';
+                indicator.textContent = `${this.currentIndex + 1} / ${this.images.length}${savedMark}`;
+                indicator.className = this.savedImages.has(this.currentIndex) ? 'indicator saved' : 'indicator';
+
+                // Set initial zoom to 100% (fits in view)
+                this.setZoom(1);
+
                 this.updateButtonStates();
             }
 
             updateButtonStates() {
-                document.getElementById('prevBtn').disabled = this.currentIndex === 0 || this.images.length === 0;
-                document.getElementById('nextBtn').disabled = this.currentIndex === this.images.length - 1 || this.images.length === 0;
+                const hasImages = this.images.length > 0;
+                document.getElementById('prevBtn').disabled = this.currentIndex === 0 || !hasImages;
+                document.getElementById('nextBtn').disabled = this.currentIndex === this.images.length - 1 || !hasImages;
                 document.getElementById('undoBtn').disabled = this.historyStep <= 0;
                 document.getElementById('redoBtn').disabled = this.historyStep >= this.history.length - 1;
-                document.getElementById('clearBtn').disabled = this.images.length === 0;
-                document.getElementById('resetBtn').disabled = this.images.length === 0;
-                document.getElementById('saveBtn').disabled = this.images.length === 0;
+                document.getElementById('clearBtn').disabled = !hasImages;
+                document.getElementById('resetBtn').disabled = !hasImages;
+                document.getElementById('saveBtn').disabled = !hasImages;
             }
 
             startDrawing(e) {
+                if (this.images.length === 0) return;
                 this.isDrawing = true;
                 this.draw(e);
             }
 
             draw(e) {
                 if (!this.isDrawing || this.images.length === 0) return;
-                
+
                 const rect = this.canvas.getBoundingClientRect();
                 const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
                 const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
-                
+
                 this.applyMosaic(x, y);
             }
 
@@ -1012,11 +1281,11 @@
                 const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 const data = imageData.data;
                 const radius = this.brushSize / 2;
-                
+
                 for (let y = Math.max(0, centerY - radius); y < Math.min(this.canvas.height, centerY + radius); y++) {
                     for (let x = Math.max(0, centerX - radius); x < Math.min(this.canvas.width, centerX + radius); x++) {
                         const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
-                        
+
                         if (distance <= radius) {
                             if (this.mosaicType === 'pixelate') {
                                 this.pixelatePixel(data, Math.floor(x), Math.floor(y), imageData.width);
@@ -1028,17 +1297,17 @@
                         }
                     }
                 }
-                
+
                 this.ctx.putImageData(imageData, 0, 0);
             }
 
             pixelatePixel(data, x, y, width) {
-                const blockSize = this.mosaicSize;
+                const blockSize = Math.max(1, this.mosaicSize);
                 const blockX = Math.floor(x / blockSize) * blockSize;
                 const blockY = Math.floor(y / blockSize) * blockSize;
-                
+
                 let r = 0, g = 0, b = 0, count = 0;
-                
+
                 for (let by = blockY; by < Math.min(blockY + blockSize, this.canvas.height); by++) {
                     for (let bx = blockX; bx < Math.min(blockX + blockSize, this.canvas.width); bx++) {
                         const idx = (by * width + bx) * 4;
@@ -1048,12 +1317,12 @@
                         count++;
                     }
                 }
-                
+
                 if (count > 0) {
                     r = Math.floor(r / count);
                     g = Math.floor(g / count);
                     b = Math.floor(b / count);
-                    
+
                     const idx = (y * width + x) * 4;
                     data[idx] = r;
                     data[idx + 1] = g;
@@ -1062,14 +1331,14 @@
             }
 
             blurPixel(data, x, y, width, height) {
-                const blurRadius = Math.floor(this.mosaicSize / 3);
+                const blurRadius = Math.max(1, Math.floor(this.mosaicSize / 3));
                 let r = 0, g = 0, b = 0, count = 0;
-                
+
                 for (let dy = -blurRadius; dy <= blurRadius; dy++) {
                     for (let dx = -blurRadius; dx <= blurRadius; dx++) {
                         const nx = x + dx;
                         const ny = y + dy;
-                        
+
                         if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                             const idx = (ny * width + nx) * 4;
                             const weight = 1 - (Math.abs(dx) + Math.abs(dy)) / (2 * blurRadius);
@@ -1080,7 +1349,7 @@
                         }
                     }
                 }
-                
+
                 if (count > 0) {
                     const idx = (y * width + x) * 4;
                     data[idx] = Math.floor(r / count);
@@ -1090,12 +1359,12 @@
             }
 
             mosaicPixel(data, x, y, width) {
-                const tileSize = this.mosaicSize;
+                const tileSize = Math.max(1, this.mosaicSize);
                 const tileX = Math.floor(x / tileSize) * tileSize;
                 const tileY = Math.floor(y / tileSize) * tileSize;
-                
+
                 let r = 0, g = 0, b = 0, count = 0;
-                
+
                 for (let ty = tileY; ty < Math.min(tileY + tileSize, this.canvas.height); ty++) {
                     for (let tx = tileX; tx < Math.min(tileX + tileSize, this.canvas.width); tx++) {
                         const idx = (ty * width + tx) * 4;
@@ -1105,17 +1374,17 @@
                         count++;
                     }
                 }
-                
+
                 if (count > 0) {
                     r = Math.floor(r / count);
                     g = Math.floor(g / count);
                     b = Math.floor(b / count);
-                    
-                    const variation = 20;
+
+                    const variation = this.mosaicSize > 2 ? 20 : 5;
                     r = Math.max(0, Math.min(255, r + (Math.random() - 0.5) * variation));
                     g = Math.max(0, Math.min(255, g + (Math.random() - 0.5) * variation));
                     b = Math.max(0, Math.min(255, b + (Math.random() - 0.5) * variation));
-                    
+
                     const idx = (y * width + x) * 4;
                     data[idx] = r;
                     data[idx + 1] = g;
@@ -1129,12 +1398,12 @@
                     this.history.length = this.historyStep;
                 }
                 this.history.push(this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height));
-                
+
                 if (this.history.length > 50) {
                     this.history.shift();
                     this.historyStep--;
                 }
-                
+
                 this.updateButtonStates();
             }
 
@@ -1169,52 +1438,98 @@
                 }
             }
 
+            async selectOutputFolder() {
+                // Check if File System Access API is supported
+                if (!('showDirectoryPicker' in window)) {
+                    this.showStatus('This browser does not support folder selection. Use Chrome or Edge.', 'error');
+                    return;
+                }
+
+                try {
+                    this.outputFolderHandle = await window.showDirectoryPicker({
+                        mode: 'readwrite'
+                    });
+
+                    const folderName = this.outputFolderHandle.name;
+                    document.getElementById('outputFolderText').textContent = folderName;
+                    document.getElementById('outputStatus').textContent = 'AUTO-SAVE ENABLED';
+                    this.showStatus(`Output folder: ${folderName}`, 'success');
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.error('Folder selection error:', err);
+                        this.showStatus('Failed to select folder', 'error');
+                    }
+                }
+            }
+
             async save() {
                 if (this.images.length === 0) return;
-                
+
                 try {
-                    const isElectronRuntime = typeof window.electronAPI !== 'undefined';
-                    
-                    if (isElectronRuntime && this.outputFolderPath && window.electronAPI) {
-                        const imageData = this.canvas.toDataURL('image/png');
-                        const originalName = this.images[this.currentIndex].name;
-                        const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
-                        const outputPath = `${this.outputFolderPath}/${nameWithoutExt}_mosaic.png`;
-                        
-                        const result = await window.electronAPI.saveImage(imageData, outputPath);
-                        
-                        if (result.success) {
+                    const blob = await new Promise(resolve => {
+                        this.canvas.toBlob(resolve, 'image/png');
+                    });
+
+                    const originalName = this.images[this.currentIndex].name;
+                    const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
+                    const fileName = `mosaic_${nameWithoutExt}.png`;
+
+                    // If output folder is selected, save directly to folder
+                    if (this.outputFolderHandle) {
+                        try {
+                            const fileHandle = await this.outputFolderHandle.getFileHandle(fileName, { create: true });
+                            const writable = await fileHandle.createWritable();
+                            await writable.write(blob);
+                            await writable.close();
+
                             this.savedImages.add(this.currentIndex);
                             const indicator = document.getElementById('indicator');
+                            indicator.textContent = `${this.currentIndex + 1} / ${this.images.length} SAVED`;
                             indicator.className = 'indicator saved';
-                            this.showStatus('Image saved to output folder', 'success');
-                        } else {
-                            this.showStatus('Failed to save image', 'error');
+                            this.showStatus(`Saved: ${fileName}`, 'success');
+                            return true;
+                        } catch (err) {
+                            console.error('Direct save error:', err);
+                            this.showStatus('Folder access lost. Please reselect folder.', 'error');
+                            this.outputFolderHandle = null;
+                            document.getElementById('outputFolderText').textContent = 'SELECT FOLDER';
+                            document.getElementById('outputStatus').textContent = '';
+                            return false;
                         }
-                    } else {
-                        const blob = await new Promise(resolve => {
-                            this.canvas.toBlob(resolve, 'image/png');
-                        });
-                        
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        const originalName = this.images[this.currentIndex].name;
-                        const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
-                        a.href = url;
-                        a.download = `mosaic_${nameWithoutExt}.png`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        
-                        this.savedImages.add(this.currentIndex);
-                        const indicator = document.getElementById('indicator');
-                        indicator.className = 'indicator saved';
-                        this.showStatus('Image saved successfully', 'success');
                     }
+
+                    // Fallback to download
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    this.savedImages.add(this.currentIndex);
+                    const indicator = document.getElementById('indicator');
+                    indicator.textContent = `${this.currentIndex + 1} / ${this.images.length} SAVED`;
+                    indicator.className = 'indicator saved';
+                    this.showStatus('Image downloaded', 'success');
+
+                    return true;
                 } catch (error) {
                     this.showStatus('Failed to save image', 'error');
                     console.error('Save error:', error);
+                    return false;
+                }
+            }
+
+            async saveAndNext() {
+                if (this.images.length === 0) return;
+
+                const saved = await this.save();
+                if (saved && this.currentIndex < this.images.length - 1) {
+                    setTimeout(() => this.nextImage(), 300);
+                } else if (saved && this.currentIndex === this.images.length - 1) {
+                    this.showStatus('All images processed!', 'success');
                 }
             }
 
@@ -1237,10 +1552,10 @@
                 statusBar.textContent = message.toUpperCase();
                 statusBar.className = `status-bar ${type}`;
                 statusBar.style.display = 'block';
-                
+
                 setTimeout(() => {
                     statusBar.style.display = 'none';
-                }, 3000);
+                }, 2000);
             }
         }
 
