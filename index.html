@@ -3973,7 +3973,8 @@
                             return;
                         }
 
-                        const frameNum = Math.floor(this.video.currentTime * this.fps);
+                        // Update current frame number for position loading
+                        this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
 
                         // Load positions for this frame
                         this.loadRegionPositionsForFrame();
@@ -4024,8 +4025,10 @@
                             const ffmpeg = createFFmpeg({
                                 log: true,
                                 progress: ({ ratio }) => {
-                                    const pct = 50 + Math.round(ratio * 50);
-                                    document.querySelector('.loading-text').textContent = `CONVERTING ${pct}%`;
+                                    if (ratio && !isNaN(ratio)) {
+                                        const pct = 50 + Math.round(ratio * 50);
+                                        document.querySelector('.loading-text').textContent = `CONVERTING ${pct}%`;
+                                    }
                                 }
                             });
 
