@@ -2957,10 +2957,15 @@
                 if (this.images.length === 0 && !(this.isVideoMode && this.video.src)) return;
 
                 const rect = this.canvas.getBoundingClientRect();
-                const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
-                const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+                const scaleX = this.canvas.width / rect.width;
+                const scaleY = this.canvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
 
-                this.applyMosaic(x, y);
+                // ブラシサイズも同じスケールで変換（画面表示とキャンバス座標を一致させる）
+                const scaledBrushSize = this.brushSize * Math.max(scaleX, scaleY);
+
+                this.applyMosaic(x, y, scaledBrushSize);
             }
 
             stopDrawing() {
@@ -2975,10 +2980,12 @@
                 }
             }
 
-            applyMosaic(centerX, centerY) {
+            applyMosaic(centerX, centerY, scaledBrushSize = null) {
                 const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 const data = imageData.data;
-                const radius = this.brushSize / 2;
+                // スケーリングされたブラシサイズを使用（指定がなければthis.brushSizeを使用）
+                const brushSize = scaledBrushSize !== null ? scaledBrushSize : this.brushSize;
+                const radius = brushSize / 2;
 
                 // 解像度に応じてモザイクサイズを自動スケーリング
                 // 基準: 1920px幅で設定値どおり、それ以外は比率で調整
