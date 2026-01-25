@@ -591,14 +591,18 @@
         /* Recording Indicator */
         .recording-indicator {
             display: none;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
             color: #ff4444;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
-            padding: 4px 10px;
-            background: rgba(255, 68, 68, 0.1);
+            padding: 4px 12px;
+            background: rgba(10, 10, 10, 0.8);
             border: 1px solid #ff4444;
             border-radius: 4px;
-            margin-bottom: 8px;
+            z-index: 100;
             animation: pulse 1s infinite;
         }
 
@@ -1434,7 +1438,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.0.5</span>
+            <span class="version">v3.0.6</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -1459,6 +1463,7 @@
     <div class="main-container">
         <div class="canvas-section">
             <div class="canvas-wrapper" id="dropZone">
+                <div class="recording-indicator" id="recordingIndicator">● REC</div>
                 <div class="drop-hint" id="dropHint">
                     <span data-i18n="dropHint">DROP IMAGES HERE</span><br>
                     <span style="font-size: 10px; opacity: 0.5;" data-i18n="dropHintSub">or click to select files</span>
@@ -1485,7 +1490,6 @@
 
             <!-- Video Controls -->
             <div class="video-controls" id="videoControls">
-                <div class="recording-indicator" id="recordingIndicator">● REC</div>
                 <div class="speed-control">
                     <button class="speed-btn" data-speed="0.1">0.1x</button>
                     <button class="speed-btn" data-speed="0.25">0.25x</button>
