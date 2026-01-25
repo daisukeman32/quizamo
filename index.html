@@ -1336,6 +1336,33 @@
             letter-spacing: 1px;
         }
 
+        .loading-progress-container {
+            margin-top: 20px;
+            width: 200px;
+        }
+
+        .loading-progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .loading-progress-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--text-primary);
+            transition: width 0.3s ease;
+        }
+
+        .loading-progress-text {
+            margin-top: 8px;
+            font-size: 14px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
         /* Status Messages */
         .status-bar {
             position: fixed;
@@ -1396,7 +1423,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.0.1</span>
+            <span class="version">v3.0.2</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -1644,6 +1671,12 @@
         <div class="loading-content">
             <div class="loading-spinner"></div>
             <div class="loading-text">LOADING IMAGES</div>
+            <div class="loading-progress-container" style="display: none;">
+                <div class="loading-progress-bar">
+                    <div class="loading-progress-fill"></div>
+                </div>
+                <div class="loading-progress-text">0%</div>
+            </div>
         </div>
     </div>
 
@@ -3915,6 +3948,9 @@
                 this.showStatus(this.t('exporting'), 'success');
                 document.getElementById('loading').style.display = 'flex';
                 document.querySelector('.loading-text').textContent = 'EXPORTING VIDEO';
+                document.querySelector('.loading-progress-container').style.display = 'block';
+                document.querySelector('.loading-progress-fill').style.width = '0%';
+                document.querySelector('.loading-progress-text').textContent = '0%';
 
                 // Stop playback
                 this.stopPlaybackLoop();
@@ -3987,7 +4023,9 @@
 
                         // Update progress (0-50% for recording)
                         const progress = Math.round((framesRendered / totalFramesToRender) * 50);
-                        document.querySelector('.loading-text').textContent = `RECORDING ${progress}%`;
+                        document.querySelector('.loading-text').textContent = 'RECORDING';
+                        document.querySelector('.loading-progress-fill').style.width = progress + '%';
+                        document.querySelector('.loading-progress-text').textContent = progress + '%';
 
                         // Advance to next frame
                         const nextTime = this.video.currentTime + (1 / this.fps);
@@ -4019,7 +4057,9 @@
                         }
 
                         if (typeof FFmpeg !== 'undefined' && FFmpeg.createFFmpeg) {
-                            document.querySelector('.loading-text').textContent = 'CONVERTING TO MP4...';
+                            document.querySelector('.loading-text').textContent = 'CONVERTING TO MP4';
+                            document.querySelector('.loading-progress-fill').style.width = '50%';
+                            document.querySelector('.loading-progress-text').textContent = '50%';
 
                             const { createFFmpeg, fetchFile } = FFmpeg;
                             const ffmpeg = createFFmpeg({
@@ -4027,7 +4067,8 @@
                                 progress: ({ ratio }) => {
                                     if (ratio && !isNaN(ratio)) {
                                         const pct = 50 + Math.round(ratio * 50);
-                                        document.querySelector('.loading-text').textContent = `CONVERTING ${pct}%`;
+                                        document.querySelector('.loading-progress-fill').style.width = pct + '%';
+                                        document.querySelector('.loading-progress-text').textContent = pct + '%';
                                     }
                                 }
                             });
@@ -4071,6 +4112,7 @@
                     URL.revokeObjectURL(url);
 
                     document.getElementById('loading').style.display = 'none';
+                    document.querySelector('.loading-progress-container').style.display = 'none';
                     if (fileExtension === 'mp4') {
                         this.showStatus(this.t('exportComplete'), 'success');
                     } else {
@@ -4092,6 +4134,7 @@
                 } catch (error) {
                     console.error('Export error:', error);
                     document.getElementById('loading').style.display = 'none';
+                    document.querySelector('.loading-progress-container').style.display = 'none';
                     this.showStatus('Export failed: ' + error.message, 'error');
                 }
             }
