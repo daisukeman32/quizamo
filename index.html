@@ -1720,6 +1720,7 @@
                 this.positionHistory = []; // For undo: [{frameNumber, positions}]
                 this.isDraggingRegion = false;
                 this.dragOffset = { x: 0, y: 0 };
+                this.dragRenderPending = false;
                 this.regionIdCounter = 0;
                 this.regionShape = 'rect'; // 'rect', 'ellipse', 'diamond'
                 this.regionWidth = 500;
@@ -1901,11 +1902,10 @@
                     } else if (e.target.classList.contains('rotate-handle')) {
                         this.startRotating(e);
                     } else if (e.target.classList.contains('move-handle')) {
-                        // Move handle - start dragging from center
-                        this.startDraggingRegion(e, true);
-                    } else {
+                        // Only move-handle can initiate dragging
                         this.startDraggingRegion(e);
                     }
+                    // Clicking elsewhere on overlay does nothing (no drag from border)
                 });
 
                 // Prevent clicks on region overlay from triggering file input
@@ -1928,7 +1928,7 @@
                 });
             }
 
-            startDraggingRegion(e, fromCenter = false) {
+            startDraggingRegion(e) {
                 if (this.selectedRegionIndex < 0) return;
                 e.preventDefault();
                 this.isDraggingRegion = true;
@@ -1947,11 +1947,10 @@
                 this.cachedCanvasLeft = this.cachedCanvasRect.left - this.cachedWrapperRect.left;
                 this.cachedCanvasTop = this.cachedCanvasRect.top - this.cachedWrapperRect.top;
 
-                // Always calculate offset from actual mouse position to overlay top-left
-                // This ensures the overlay moves exactly with the mouse
+                // Use center of overlay as drag point (move-handle is at center)
                 this.dragOffset = {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
+                    x: rect.width / 2,
+                    y: rect.height / 2
                 };
 
                 // Show recording indicator when playing
@@ -1987,7 +1986,7 @@
                 // Use cached values for performance
                 if (!this.cachedWrapperRect || !this.cachedOverlay) return;
 
-                // Calculate new position directly (no requestAnimationFrame for responsiveness)
+                // Calculate new position
                 let newX = e.clientX - this.cachedWrapperRect.left - this.dragOffset.x;
                 let newY = e.clientY - this.cachedWrapperRect.top - this.dragOffset.y;
 
@@ -2007,10 +2006,19 @@
                 region.x = (newX - this.cachedCanvasLeft) * this.cachedScaleX;
                 region.y = (newY - this.cachedCanvasTop) * this.cachedScaleY;
 
-                // 動画モード時：位置を保存
+                // 動画モード時：リアルタイムでモザイクを更新（スロットリング）
                 if (this.isVideoMode && this.video.src) {
                     this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
                     this.saveRegionPositionForFrameImmediate();
+
+                    // 30fps相当でモザイクを再描画
+                    if (!this.dragRenderPending) {
+                        this.dragRenderPending = true;
+                        requestAnimationFrame(() => {
+                            this.renderVideoFrame();
+                            this.dragRenderPending = false;
+                        });
+                    }
                 }
             }
 
@@ -2043,10 +2051,18 @@
 
                 this.updateRegionOverlaySize();
 
-                // 動画モード時：位置を保存
+                // 動画モード時：リアルタイムでモザイクを更新
                 if (this.isVideoMode && this.video.src) {
                     this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
                     this.saveRegionPositionForFrameImmediate();
+
+                    if (!this.dragRenderPending) {
+                        this.dragRenderPending = true;
+                        requestAnimationFrame(() => {
+                            this.renderVideoFrame();
+                            this.dragRenderPending = false;
+                        });
+                    }
                 }
             }
 
@@ -2098,10 +2114,18 @@
                 let baseRotation = region.shape === 'diamond' ? 45 : 0;
                 this.cachedRotateOverlay.style.transform = `rotate(${baseRotation + (region.rotation || 0)}deg)`;
 
-                // 動画モード時：位置を保存
+                // 動画モード時：リアルタイムでモザイクを更新
                 if (this.isVideoMode && this.video.src) {
                     this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
                     this.saveRegionPositionForFrameImmediate();
+
+                    if (!this.dragRenderPending) {
+                        this.dragRenderPending = true;
+                        requestAnimationFrame(() => {
+                            this.renderVideoFrame();
+                            this.dragRenderPending = false;
+                        });
+                    }
                 }
             }
 
