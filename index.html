@@ -1935,6 +1935,19 @@
                 const overlay = document.getElementById('regionOverlay');
                 const rect = overlay.getBoundingClientRect();
 
+                // Cache all values at drag start for maximum performance
+                const canvasWrapper = document.getElementById('dropZone');
+                this.cachedWrapperRect = canvasWrapper.getBoundingClientRect();
+                this.cachedCanvasRect = this.canvas.getBoundingClientRect();
+                this.cachedOverlay = overlay;
+                this.cachedOverlayWidth = overlay.offsetWidth;
+                this.cachedOverlayHeight = overlay.offsetHeight;
+                this.cachedScaleX = this.canvas.width / this.cachedCanvasRect.width;
+                this.cachedScaleY = this.canvas.height / this.cachedCanvasRect.height;
+                this.cachedCanvasLeft = this.cachedCanvasRect.left - this.cachedWrapperRect.left;
+                this.cachedCanvasTop = this.cachedCanvasRect.top - this.cachedWrapperRect.top;
+                this.dragPending = false;
+
                 if (fromCenter) {
                     // Dragging from move handle - offset from center
                     this.dragOffset = {
@@ -1961,6 +1974,12 @@
                 e.stopPropagation();
                 this.isResizingRegion = true;
 
+                // Cache all values for performance
+                this.cachedCanvasRect = this.canvas.getBoundingClientRect();
+                this.cachedScaleX = this.canvas.width / this.cachedCanvasRect.width;
+                this.cachedScaleY = this.canvas.height / this.cachedCanvasRect.height;
+                this.resizePending = false;
+
                 // Show recording indicator when playing
                 if (this.isVideoMode && this.isPlaying) {
                     document.getElementById('recordingIndicator').classList.add('active');
@@ -1974,28 +1993,47 @@
             }
 
             dragRegion(e) {
-                const canvasWrapper = document.getElementById('dropZone');
-                const wrapperRect = canvasWrapper.getBoundingClientRect();
-                const overlay = document.getElementById('regionOverlay');
+                // Use all cached values for maximum performance
+                if (!this.cachedWrapperRect || !this.cachedOverlay) return;
 
-                let newX = e.clientX - wrapperRect.left - this.dragOffset.x;
-                let newY = e.clientY - wrapperRect.top - this.dragOffset.y;
+                // Store pending position for requestAnimationFrame
+                this.pendingDragX = e.clientX;
+                this.pendingDragY = e.clientY;
 
-                // Constrain to canvas area
-                const canvasRect = this.canvas.getBoundingClientRect();
-                const canvasLeft = canvasRect.left - wrapperRect.left;
-                const canvasTop = canvasRect.top - wrapperRect.top;
+                // Use requestAnimationFrame for smoother updates
+                if (!this.dragPending) {
+                    this.dragPending = true;
+                    requestAnimationFrame(() => this.executeDrag());
+                }
+            }
 
-                newX = Math.max(canvasLeft, Math.min(canvasLeft + canvasRect.width - overlay.offsetWidth, newX));
-                newY = Math.max(canvasTop, Math.min(canvasTop + canvasRect.height - overlay.offsetHeight, newY));
+            executeDrag() {
+                this.dragPending = false;
+                if (!this.isDraggingRegion) return;
 
-                overlay.style.left = newX + 'px';
-                overlay.style.top = newY + 'px';
+                const clientX = this.pendingDragX;
+                const clientY = this.pendingDragY;
 
-                // Update region position in canvas coordinates
-                this.updateRegionCanvasPosition();
+                let newX = clientX - this.cachedWrapperRect.left - this.dragOffset.x;
+                let newY = clientY - this.cachedWrapperRect.top - this.dragOffset.y;
 
-                // 動画モード時：位置のみ保存（描画は操作終了時）
+                // Constrain to canvas area using cached values
+                const maxX = this.cachedCanvasLeft + this.cachedCanvasRect.width - this.cachedOverlayWidth;
+                const maxY = this.cachedCanvasTop + this.cachedCanvasRect.height - this.cachedOverlayHeight;
+
+                newX = Math.max(this.cachedCanvasLeft, Math.min(maxX, newX));
+                newY = Math.max(this.cachedCanvasTop, Math.min(maxY, newY));
+
+                // Direct style assignment
+                this.cachedOverlay.style.left = newX + 'px';
+                this.cachedOverlay.style.top = newY + 'px';
+
+                // Update region position using cached scale
+                const region = this.regions[this.selectedRegionIndex];
+                region.x = (newX - this.cachedCanvasLeft) * this.cachedScaleX;
+                region.y = (newY - this.cachedCanvasTop) * this.cachedScaleY;
+
+                // 動画モード時：位置のみ保存
                 if (this.isVideoMode && this.video.src) {
                     this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
                     this.saveRegionPositionForFrameImmediate();
@@ -2020,22 +2058,33 @@
             }
 
             resizeRegion(e) {
-                const dx = e.clientX - this.resizeStart.x;
-                const dy = e.clientY - this.resizeStart.y;
+                if (!this.cachedCanvasRect) return;
 
-                // Scale mouse movement to canvas coordinates for 1:1 feel
-                const canvasRect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / canvasRect.width;
-                const scaleY = this.canvas.height / canvasRect.height;
+                // Store pending values for requestAnimationFrame
+                this.pendingResizeX = e.clientX;
+                this.pendingResizeY = e.clientY;
+
+                // Use requestAnimationFrame for smoother updates
+                if (!this.resizePending) {
+                    this.resizePending = true;
+                    requestAnimationFrame(() => this.executeResize());
+                }
+            }
+
+            executeResize() {
+                this.resizePending = false;
+                if (!this.isResizingRegion) return;
+
+                const dx = this.pendingResizeX - this.resizeStart.x;
+                const dy = this.pendingResizeY - this.resizeStart.y;
 
                 const region = this.regions[this.selectedRegionIndex];
-                region.width = Math.max(20, this.resizeStart.width + dx * scaleX);
-                region.height = Math.max(20, this.resizeStart.height + dy * scaleY);
+                region.width = Math.max(20, this.resizeStart.width + dx * this.cachedScaleX);
+                region.height = Math.max(20, this.resizeStart.height + dy * this.cachedScaleY);
 
                 this.updateRegionOverlaySize();
-                this.updateRegionCanvasPosition();
 
-                // 動画モード時：位置のみ保存（描画は操作終了時）
+                // 動画モード時：位置のみ保存
                 if (this.isVideoMode && this.video.src) {
                     this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
                     this.saveRegionPositionForFrameImmediate();
@@ -2051,11 +2100,15 @@
                 const region = this.regions[this.selectedRegionIndex];
                 const overlay = document.getElementById('regionOverlay');
                 const rect = overlay.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
+
+                // Cache center position at rotation start
+                this.cachedRotateCenterX = rect.left + rect.width / 2;
+                this.cachedRotateCenterY = rect.top + rect.height / 2;
+                this.cachedRotateOverlay = overlay;
+                this.rotatePending = false;
 
                 // Calculate initial mouse angle
-                const mouseAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+                const mouseAngle = Math.atan2(e.clientY - this.cachedRotateCenterY, e.clientX - this.cachedRotateCenterX) * (180 / Math.PI);
 
                 this.rotateStart = {
                     angle: region.rotation || 0,
@@ -2071,23 +2124,37 @@
             rotateRegion(e) {
                 if (!this.isRotatingRegion || this.selectedRegionIndex < 0) return;
 
-                const region = this.regions[this.selectedRegionIndex];
-                const overlay = document.getElementById('regionOverlay');
-                const rect = overlay.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
+                // Store pending values for requestAnimationFrame
+                this.pendingRotateX = e.clientX;
+                this.pendingRotateY = e.clientY;
 
-                // Calculate current mouse angle
-                const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+                if (!this.rotatePending) {
+                    this.rotatePending = true;
+                    requestAnimationFrame(() => this.executeRotate());
+                }
+            }
+
+            executeRotate() {
+                this.rotatePending = false;
+                if (!this.isRotatingRegion) return;
+
+                const region = this.regions[this.selectedRegionIndex];
+
+                // Calculate current mouse angle using cached center
+                const currentAngle = Math.atan2(
+                    this.pendingRotateY - this.cachedRotateCenterY,
+                    this.pendingRotateX - this.cachedRotateCenterX
+                ) * (180 / Math.PI);
                 const deltaAngle = currentAngle - this.rotateStart.mouseAngle;
 
                 // Update region rotation
                 region.rotation = this.rotateStart.angle + deltaAngle;
 
-                // Update overlay display
-                this.updateRegionOverlayRotation();
+                // Update overlay display using cached overlay
+                let baseRotation = region.shape === 'diamond' ? 45 : 0;
+                this.cachedRotateOverlay.style.transform = `rotate(${baseRotation + (region.rotation || 0)}deg)`;
 
-                // 動画モード時：位置のみ保存（描画は操作終了時）
+                // 動画モード時：位置のみ保存
                 if (this.isVideoMode && this.video.src) {
                     this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
                     this.saveRegionPositionForFrameImmediate();
