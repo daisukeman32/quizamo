@@ -1438,7 +1438,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.1.0</span>
+            <span class="version">v3.1.1</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -2545,16 +2545,14 @@
 
                         switch(e.key.toLowerCase()) {
                             case 'arrowleft':
+                            case 'a':
                                 e.preventDefault();
                                 this.seekFrames(-1);
                                 break;
                             case 'arrowright':
+                            case 'd':
                                 e.preventDefault();
                                 this.seekFrames(1);
-                                break;
-                            case 'z':
-                                e.preventDefault();
-                                this.undoRegionPosition();
                                 break;
                             case '1':
                             case '2':
