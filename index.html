@@ -1363,6 +1363,17 @@
             font-weight: 500;
         }
 
+        .loading-progress-bar.indeterminate .loading-progress-fill {
+            width: 30% !important;
+            animation: indeterminate 1.5s ease-in-out infinite;
+        }
+
+        @keyframes indeterminate {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(200%); }
+            100% { transform: translateX(-100%); }
+        }
+
         /* Status Messages */
         .status-bar {
             position: fixed;
@@ -1423,7 +1434,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.0.2</span>
+            <span class="version">v3.0.3</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -4021,9 +4032,9 @@
 
                         framesRendered++;
 
-                        // Update progress (0-50% for recording)
-                        const progress = Math.round((framesRendered / totalFramesToRender) * 50);
-                        document.querySelector('.loading-text').textContent = 'RECORDING';
+                        // Update progress for recording phase (0-100%)
+                        const progress = Math.round((framesRendered / totalFramesToRender) * 100);
+                        document.querySelector('.loading-text').textContent = 'RECORDING (1/2)';
                         document.querySelector('.loading-progress-fill').style.width = progress + '%';
                         document.querySelector('.loading-progress-text').textContent = progress + '%';
 
@@ -4057,23 +4068,30 @@
                         }
 
                         if (typeof FFmpeg !== 'undefined' && FFmpeg.createFFmpeg) {
-                            document.querySelector('.loading-text').textContent = 'CONVERTING TO MP4';
-                            document.querySelector('.loading-progress-fill').style.width = '50%';
-                            document.querySelector('.loading-progress-text').textContent = '50%';
+                            document.querySelector('.loading-text').textContent = 'CONVERTING (2/2)';
+                            document.querySelector('.loading-progress-fill').style.width = '0%';
+                            document.querySelector('.loading-progress-text').textContent = 'Loading FFmpeg...';
+                            document.querySelector('.loading-progress-bar').classList.add('indeterminate');
 
                             const { createFFmpeg, fetchFile } = FFmpeg;
+                            let lastProgress = 0;
                             const ffmpeg = createFFmpeg({
                                 log: true,
                                 progress: ({ ratio }) => {
-                                    if (ratio && !isNaN(ratio)) {
-                                        const pct = 50 + Math.round(ratio * 50);
-                                        document.querySelector('.loading-progress-fill').style.width = pct + '%';
-                                        document.querySelector('.loading-progress-text').textContent = pct + '%';
+                                    if (ratio && !isNaN(ratio) && ratio > 0) {
+                                        document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
+                                        const pct = Math.round(ratio * 100);
+                                        if (pct > lastProgress) {
+                                            lastProgress = pct;
+                                            document.querySelector('.loading-progress-fill').style.width = pct + '%';
+                                            document.querySelector('.loading-progress-text').textContent = pct + '%';
+                                        }
                                     }
                                 }
                             });
 
                             await ffmpeg.load();
+                            document.querySelector('.loading-progress-text').textContent = 'Processing...';
 
                             // Write WebM to FFmpeg filesystem
                             ffmpeg.FS('writeFile', 'input.webm', await fetchFile(recordedBlob));
@@ -4093,6 +4111,11 @@
                             const data = ffmpeg.FS('readFile', 'output.mp4');
                             finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
                             fileExtension = 'mp4';
+
+                            // Complete progress
+                            document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
+                            document.querySelector('.loading-progress-fill').style.width = '100%';
+                            document.querySelector('.loading-progress-text').textContent = '100%';
                         } else {
                             console.log('FFmpeg not available');
                         }
@@ -4113,6 +4136,7 @@
 
                     document.getElementById('loading').style.display = 'none';
                     document.querySelector('.loading-progress-container').style.display = 'none';
+                    document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
                     if (fileExtension === 'mp4') {
                         this.showStatus(this.t('exportComplete'), 'success');
                     } else {
@@ -4135,6 +4159,7 @@
                     console.error('Export error:', error);
                     document.getElementById('loading').style.display = 'none';
                     document.querySelector('.loading-progress-container').style.display = 'none';
+                    document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
                     this.showStatus('Export failed: ' + error.message, 'error');
                 }
             }
