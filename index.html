@@ -1765,8 +1765,9 @@
                 if (this.isVideoMode) {
                     // Reset video state
                     this.video.src = '';
-                    this.frameEdits.clear();
-                    this.originalFrames.clear();
+                    this.regionPositions.clear();
+                    this.regions = [];
+                    this.selectedRegionIndex = -1;
                     this.currentFrameNumber = 0;
                     this.totalFrames = 0;
                     document.getElementById('videoName').textContent = '';
@@ -1774,6 +1775,8 @@
                     document.getElementById('totalFrames').textContent = '0';
                     document.getElementById('currentTime').textContent = '00:00:00';
                     document.getElementById('totalTime').textContent = '00:00:00';
+                    this.hideRegionOverlay();
+                    this.updateRegionList();
                 } else {
                     // Reset image state
                     this.images = [];
