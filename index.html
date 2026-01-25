@@ -1438,7 +1438,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.1.2</span>
+            <span class="version">v3.1.3</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -1842,10 +1842,11 @@
                 // Video input
                 document.getElementById('videoInput').addEventListener('change', (e) => this.loadVideo(e));
                 document.getElementById('videoInputArea').addEventListener('click', (e) => {
-                    // Only trigger if click is directly on videoInputArea or its children
-                    if (e.target.closest('#videoInputArea')) {
-                        document.getElementById('videoInput').click();
+                    // Don't trigger if click is on the label or input (native behavior handles it)
+                    if (e.target.tagName === 'LABEL' || e.target.tagName === 'INPUT' || e.target.closest('label')) {
+                        return;
                     }
+                    document.getElementById('videoInput').click();
                 });
 
                 // Playback controls
@@ -2405,7 +2406,11 @@
             initializeEventListeners() {
                 // File input
                 document.getElementById('fileInput').addEventListener('change', (e) => this.loadImages(e));
-                document.getElementById('fileInputArea').addEventListener('click', () => {
+                document.getElementById('fileInputArea').addEventListener('click', (e) => {
+                    // Don't trigger if click is on the label or input (native behavior handles it)
+                    if (e.target.tagName === 'LABEL' || e.target.tagName === 'INPUT' || e.target.closest('label')) {
+                        return;
+                    }
                     document.getElementById('fileInput').click();
                 });
 
