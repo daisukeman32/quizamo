@@ -1945,19 +1945,14 @@
                 this.cachedCanvasTop = this.cachedCanvasRect.top - this.cachedWrapperRect.top;
 
                 // Record starting positions for delta-based movement
-                // This ensures 1:1 correspondence between mouse and region movement
-                // regardless of rotation
                 this.dragStartMouseX = e.clientX;
                 this.dragStartMouseY = e.clientY;
                 this.dragStartOverlayX = parseFloat(overlay.style.left) || 0;
                 this.dragStartOverlayY = parseFloat(overlay.style.top) || 0;
 
-                // Cache overlay size without rotation for constraints
-                const region = this.regions[this.selectedRegionIndex];
-                const scaleX = this.cachedCanvasRect.width / this.canvas.width;
-                const scaleY = this.cachedCanvasRect.height / this.canvas.height;
-                this.cachedOverlayWidth = region.width * scaleX;
-                this.cachedOverlayHeight = region.height * scaleY;
+                // Use actual overlay display size for constraints
+                this.cachedOverlayWidth = overlay.offsetWidth;
+                this.cachedOverlayHeight = overlay.offsetHeight;
 
                 // Show recording indicator when playing
                 if (this.isVideoMode && this.isPlaying) {
