@@ -2212,8 +2212,8 @@
                 const region = this.regions[this.selectedRegionIndex];
                 region.x = (overlayLeft - canvasLeft) * scaleX;
                 region.y = (overlayTop - canvasTop) * scaleY;
-                region.canvasWidth = overlay.offsetWidth * scaleX;
-                region.canvasHeight = overlay.offsetHeight * scaleY;
+                region.width = overlay.offsetWidth * scaleX;
+                region.height = overlay.offsetHeight * scaleY;
             }
 
             initializeThemeToggle() {
@@ -3395,8 +3395,6 @@
                     y: this.canvas.height / 2 - this.regionHeight / 2,
                     width: this.regionWidth,
                     height: this.regionHeight,
-                    canvasWidth: this.regionWidth,
-                    canvasHeight: this.regionHeight,
                     rotation: this.regionRotation
                 };
 
@@ -3785,8 +3783,8 @@
             applyMosaicToRegion(data, region, width, height) {
                 const x = Math.floor(region.x);
                 const y = Math.floor(region.y);
-                const w = Math.floor(region.canvasWidth || region.width);
-                const h = Math.floor(region.canvasHeight || region.height);
+                const w = Math.floor(region.width);
+                const h = Math.floor(region.height);
                 const rotation = (region.rotation || 0) * Math.PI / 180; // Convert to radians
 
                 // Resolution-based scaling
@@ -4124,7 +4122,11 @@
                     URL.revokeObjectURL(url);
 
                     document.getElementById('loading').style.display = 'none';
-                    this.showStatus(this.t('exportComplete'), 'success');
+                    if (fileExtension === 'mp4') {
+                        this.showStatus(this.t('exportComplete'), 'success');
+                    } else {
+                        this.showStatus('Export complete (WebM format - MP4 conversion unavailable)', 'success');
+                    }
 
                     // Return to first frame
                     this.video.currentTime = 0;
