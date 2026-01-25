@@ -1438,7 +1438,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.0.6</span>
+            <span class="version">v3.1.0</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -3898,16 +3898,54 @@
 
             seekFrames(delta) {
                 if (!this.video.src) return;
+                if (this.regions.length === 0) {
+                    // No regions, just seek normally
+                    this.seekFramesSimple(delta);
+                    return;
+                }
 
+                const currentFrame = Math.floor(this.video.currentTime * this.fps);
+
+                if (delta < 0) {
+                    // Going backwards: delete current frame's position, then seek back
+                    this.deleteRegionPositionForFrame(currentFrame);
+                    this.seekFramesSimple(delta);
+                } else {
+                    // Going forwards: save current position, show REC flash, then seek forward
+                    this.saveRegionPositionForFrame();
+                    this.flashRecIndicator();
+                    this.seekFramesSimple(delta);
+                }
+            }
+
+            seekFramesSimple(delta) {
                 const newTime = Math.max(0, Math.min(this.videoDuration,
                     this.video.currentTime + (delta / this.fps)));
                 this.video.currentTime = newTime;
 
-                // Wait for seek to complete then render frame
+                // Wait for seek to complete then render frame and load positions
                 this.video.onseeked = () => {
+                    this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
+                    this.loadRegionPositionsForFrame();
                     this.renderVideoFrame();
                     this.video.onseeked = null;
                 };
+            }
+
+            deleteRegionPositionForFrame(frameNum) {
+                if (this.regionPositions.has(frameNum)) {
+                    this.regionPositions.delete(frameNum);
+                }
+            }
+
+            flashRecIndicator() {
+                const recIndicator = document.getElementById('recordingIndicator');
+                recIndicator.classList.add('active');
+                setTimeout(() => {
+                    if (!this.isPlaying) {
+                        recIndicator.classList.remove('active');
+                    }
+                }, 200);
             }
 
             startTimelineDrag(e) {
