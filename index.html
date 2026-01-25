@@ -1933,25 +1933,31 @@
                 e.preventDefault();
                 this.isDraggingRegion = true;
                 const overlay = document.getElementById('regionOverlay');
-                const rect = overlay.getBoundingClientRect();
 
                 // Cache values at drag start
                 const canvasWrapper = document.getElementById('dropZone');
                 this.cachedWrapperRect = canvasWrapper.getBoundingClientRect();
                 this.cachedCanvasRect = this.canvas.getBoundingClientRect();
                 this.cachedOverlay = overlay;
-                this.cachedOverlayWidth = rect.width;
-                this.cachedOverlayHeight = rect.height;
                 this.cachedScaleX = this.canvas.width / this.cachedCanvasRect.width;
                 this.cachedScaleY = this.canvas.height / this.cachedCanvasRect.height;
                 this.cachedCanvasLeft = this.cachedCanvasRect.left - this.cachedWrapperRect.left;
                 this.cachedCanvasTop = this.cachedCanvasRect.top - this.cachedWrapperRect.top;
 
-                // Use center of overlay as drag point (move-handle is at center)
-                this.dragOffset = {
-                    x: rect.width / 2,
-                    y: rect.height / 2
-                };
+                // Record starting positions for delta-based movement
+                // This ensures 1:1 correspondence between mouse and region movement
+                // regardless of rotation
+                this.dragStartMouseX = e.clientX;
+                this.dragStartMouseY = e.clientY;
+                this.dragStartOverlayX = parseFloat(overlay.style.left) || 0;
+                this.dragStartOverlayY = parseFloat(overlay.style.top) || 0;
+
+                // Cache overlay size without rotation for constraints
+                const region = this.regions[this.selectedRegionIndex];
+                const scaleX = this.cachedCanvasRect.width / this.canvas.width;
+                const scaleY = this.cachedCanvasRect.height / this.canvas.height;
+                this.cachedOverlayWidth = region.width * scaleX;
+                this.cachedOverlayHeight = region.height * scaleY;
 
                 // Show recording indicator when playing
                 if (this.isVideoMode && this.isPlaying) {
@@ -1986,9 +1992,12 @@
                 // Use cached values for performance
                 if (!this.cachedWrapperRect || !this.cachedOverlay) return;
 
-                // Calculate new position
-                let newX = e.clientX - this.cachedWrapperRect.left - this.dragOffset.x;
-                let newY = e.clientY - this.cachedWrapperRect.top - this.dragOffset.y;
+                // Delta-based movement: mouse movement = region movement (1:1)
+                const deltaX = e.clientX - this.dragStartMouseX;
+                const deltaY = e.clientY - this.dragStartMouseY;
+
+                let newX = this.dragStartOverlayX + deltaX;
+                let newY = this.dragStartOverlayY + deltaY;
 
                 // Constrain to canvas area
                 const maxX = this.cachedCanvasLeft + this.cachedCanvasRect.width - this.cachedOverlayWidth;
@@ -2006,12 +2015,11 @@
                 region.x = (newX - this.cachedCanvasLeft) * this.cachedScaleX;
                 region.y = (newY - this.cachedCanvasTop) * this.cachedScaleY;
 
-                // 動画モード時：リアルタイムでモザイクを更新（スロットリング）
+                // 動画モード時：リアルタイムでモザイクを更新
                 if (this.isVideoMode && this.video.src) {
                     this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
                     this.saveRegionPositionForFrameImmediate();
 
-                    // 30fps相当でモザイクを再描画
                     if (!this.dragRenderPending) {
                         this.dragRenderPending = true;
                         requestAnimationFrame(() => {
