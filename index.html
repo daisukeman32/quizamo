@@ -4003,18 +4003,23 @@
                     await processFrame();
                     const recordedBlob = await recordingComplete;
 
-                    // Try to convert WebM to MP4 using FFmpeg, fall back to WebM download
+                    // Convert WebM to MP4 using FFmpeg
                     let finalBlob = recordedBlob;
                     let fileExtension = 'webm';
 
                     try {
-                        // Check if FFmpeg 0.11.x is available
+                        // Check if SharedArrayBuffer is available (required for FFmpeg)
+                        if (!crossOriginIsolated) {
+                            console.log('crossOriginIsolated is false - FFmpeg requires COOP/COEP headers');
+                            throw new Error('CORS isolation required');
+                        }
+
                         if (typeof FFmpeg !== 'undefined' && FFmpeg.createFFmpeg) {
                             document.querySelector('.loading-text').textContent = 'CONVERTING TO MP4...';
 
                             const { createFFmpeg, fetchFile } = FFmpeg;
                             const ffmpeg = createFFmpeg({
-                                log: false,
+                                log: true,
                                 progress: ({ ratio }) => {
                                     const pct = 50 + Math.round(ratio * 50);
                                     document.querySelector('.loading-text').textContent = `CONVERTING ${pct}%`;
@@ -4026,18 +4031,26 @@
                             // Write WebM to FFmpeg filesystem
                             ffmpeg.FS('writeFile', 'input.webm', await fetchFile(recordedBlob));
 
-                            // Convert to MP4
-                            await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '22', 'output.mp4');
+                            // Convert to MP4 with compatible settings
+                            await ffmpeg.run(
+                                '-i', 'input.webm',
+                                '-c:v', 'libx264',
+                                '-preset', 'fast',
+                                '-crf', '23',
+                                '-pix_fmt', 'yuv420p',
+                                '-movflags', '+faststart',
+                                'output.mp4'
+                            );
 
                             // Read the output file
                             const data = ffmpeg.FS('readFile', 'output.mp4');
                             finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
                             fileExtension = 'mp4';
                         } else {
-                            console.log('FFmpeg not available, downloading as WebM');
+                            console.log('FFmpeg not available');
                         }
                     } catch (ffmpegError) {
-                        console.warn('FFmpeg conversion failed, downloading as WebM:', ffmpegError);
+                        console.warn('FFmpeg conversion failed:', ffmpegError);
                     }
 
                     // Download the video
@@ -4055,7 +4068,12 @@
                     if (fileExtension === 'mp4') {
                         this.showStatus(this.t('exportComplete'), 'success');
                     } else {
-                        this.showStatus('Export complete (WebM format - MP4 conversion unavailable)', 'success');
+                        // WebM fallback - explain why
+                        if (!crossOriginIsolated) {
+                            this.showStatus('WebM出力（MP4変換にはHTTPSサーバーが必要）', 'success');
+                        } else {
+                            this.showStatus('WebM出力完了', 'success');
+                        }
                     }
 
                     // Return to first frame
