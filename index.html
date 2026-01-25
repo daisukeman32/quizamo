@@ -443,20 +443,6 @@
             border-radius: 50%;
         }
 
-        .region-overlay.diamond {
-            transform: rotate(45deg);
-        }
-
-        .region-overlay.diamond .region-label {
-            transform: rotate(-45deg);
-            top: -25px;
-            left: 10px;
-        }
-
-        .region-overlay.diamond .resize-handle {
-            transform: rotate(-45deg);
-        }
-
         .region-overlay .resize-handle {
             position: absolute;
             width: 10px;
@@ -514,11 +500,6 @@
             pointer-events: none;
         }
 
-        .region-overlay.diamond .rotate-handle,
-        .region-overlay.diamond .rotate-line {
-            transform: translateX(-50%) rotate(-45deg);
-        }
-
         .region-overlay .move-handle {
             position: absolute;
             width: 16px;
@@ -554,10 +535,6 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-        }
-
-        .region-overlay.diamond .move-handle {
-            transform: translate(-50%, -50%) rotate(-45deg);
         }
 
         .region-label {
@@ -1513,7 +1490,6 @@
                 <div class="shape-selector">
                     <button type="button" class="shape-btn active" data-shape="rect" title="Rectangle">▢</button>
                     <button type="button" class="shape-btn" data-shape="ellipse" title="Ellipse">⬭</button>
-                    <button type="button" class="shape-btn" data-shape="diamond" title="Diamond">◇</button>
                 </div>
                 <button type="button" class="add-region-btn" id="addRegionBtn" data-i18n="addRegion">+ ADD REGION</button>
                 <div class="region-list" id="regionList"></div>
@@ -1722,7 +1698,7 @@
                 this.dragOffset = { x: 0, y: 0 };
                 this.dragRenderPending = false;
                 this.regionIdCounter = 0;
-                this.regionShape = 'rect'; // 'rect', 'ellipse', 'diamond'
+                this.regionShape = 'rect'; // 'rect' or 'ellipse'
                 this.regionWidth = 500;
                 this.regionHeight = 500;
                 this.regionRotation = 0; // degrees
@@ -1991,15 +1967,9 @@
                 const deltaX = e.clientX - this.dragStartMouseX;
                 const deltaY = e.clientY - this.dragStartMouseY;
 
+                // No constraints - allow region to extend beyond canvas edges
                 let newX = this.dragStartOverlayX + deltaX;
                 let newY = this.dragStartOverlayY + deltaY;
-
-                // Constrain to canvas area
-                const maxX = this.cachedCanvasLeft + this.cachedCanvasRect.width - this.cachedOverlayWidth;
-                const maxY = this.cachedCanvasTop + this.cachedCanvasRect.height - this.cachedOverlayHeight;
-
-                newX = Math.max(this.cachedCanvasLeft, Math.min(maxX, newX));
-                newY = Math.max(this.cachedCanvasTop, Math.min(maxY, newY));
 
                 // Update overlay position
                 this.cachedOverlay.style.left = newX + 'px';
@@ -2114,8 +2084,7 @@
                 region.rotation = this.rotateStart.angle + deltaAngle;
 
                 // Update overlay display
-                let baseRotation = region.shape === 'diamond' ? 45 : 0;
-                this.cachedRotateOverlay.style.transform = `rotate(${baseRotation + (region.rotation || 0)}deg)`;
+                this.cachedRotateOverlay.style.transform = `rotate(${region.rotation || 0}deg)`;
 
                 // 動画モード時：リアルタイムでモザイクを更新
                 if (this.isVideoMode && this.video.src) {
@@ -2138,9 +2107,8 @@
                 const region = this.regions[this.selectedRegionIndex];
                 const overlay = document.getElementById('regionOverlay');
 
-                // Apply rotation transform (diamond already has 45deg, so add to it)
-                let baseRotation = region.shape === 'diamond' ? 45 : 0;
-                overlay.style.transform = `rotate(${baseRotation + (region.rotation || 0)}deg)`;
+                // Apply rotation transform
+                overlay.style.transform = `rotate(${region.rotation || 0}deg)`;
             }
 
             stopDraggingRegion() {
@@ -3383,7 +3351,7 @@
                 const list = document.getElementById('regionList');
                 list.innerHTML = '';
 
-                const shapeIcons = { rect: '▢', ellipse: '⬭', diamond: '◇' };
+                const shapeIcons = { rect: '▢', ellipse: '⬭' };
                 this.regions.forEach((region, index) => {
                     const item = document.createElement('div');
                     item.className = 'region-item' + (index === this.selectedRegionIndex ? ' selected' : '');
@@ -3450,13 +3418,10 @@
                 const overlay = document.getElementById('regionOverlay');
 
                 overlay.classList.add('active');
-                // Remove all shape classes first
-                overlay.classList.remove('ellipse', 'diamond');
-                // Add appropriate shape class
+                // Remove shape class first, then add if ellipse
+                overlay.classList.remove('ellipse');
                 if (region.shape === 'ellipse') {
                     overlay.classList.add('ellipse');
-                } else if (region.shape === 'diamond') {
-                    overlay.classList.add('diamond');
                 }
 
                 // Update label
@@ -3507,13 +3472,10 @@
 
             updateRegionOverlayShape() {
                 const overlay = document.getElementById('regionOverlay');
-                // Remove all shape classes
-                overlay.classList.remove('ellipse', 'diamond');
-                // Add the appropriate class
+                // Remove shape class, then add if ellipse
+                overlay.classList.remove('ellipse');
                 if (this.regionShape === 'ellipse') {
                     overlay.classList.add('ellipse');
-                } else if (this.regionShape === 'diamond') {
-                    overlay.classList.add('diamond');
                 }
 
                 if (this.selectedRegionIndex >= 0) {
@@ -3764,7 +3726,7 @@
                 const scaleFactor = imageSize / baseResolution;
                 const blockSize = Math.max(1, Math.round(region.intensity * scaleFactor));
 
-                const shape = region.shape; // 'rect', 'ellipse', 'diamond'
+                const shape = region.shape; // 'rect' or 'ellipse'
                 const centerX = x + w / 2;
                 const centerY = y + h / 2;
                 const radiusX = w / 2;
@@ -3801,11 +3763,8 @@
                         if (shape === 'ellipse') {
                             // Ellipse: check if inside ellipse equation
                             inside = (normX * normX + normY * normY) <= 1;
-                        } else if (shape === 'diamond') {
-                            // Diamond: check if inside diamond (rotated square)
-                            inside = (Math.abs(normX) + Math.abs(normY)) <= 1;
                         } else {
-                            // 'rect' shape: check if inside rectangle
+                            // Rectangle: check if inside rectangle
                             inside = Math.abs(normX) <= 1 && Math.abs(normY) <= 1;
                         }
 
