@@ -1434,7 +1434,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.0.3</span>
+            <span class="version">v3.0.4</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -4075,9 +4075,12 @@
 
                             const { createFFmpeg, fetchFile } = FFmpeg;
                             let lastProgress = 0;
+                            const expectedFrames = framesRendered; // Use actual frames recorded
+
                             const ffmpeg = createFFmpeg({
                                 log: true,
                                 progress: ({ ratio }) => {
+                                    // Fallback to ratio if available
                                     if (ratio && !isNaN(ratio) && ratio > 0) {
                                         document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
                                         const pct = Math.round(ratio * 100);
@@ -4090,8 +4093,26 @@
                                 }
                             });
 
+                            // Set custom logger to parse frame progress
+                            ffmpeg.setLogger(({ type, message }) => {
+                                if (type === 'fferr' && message.includes('frame=')) {
+                                    const frameMatch = message.match(/frame=\s*(\d+)/);
+                                    if (frameMatch) {
+                                        const currentFrame = parseInt(frameMatch[1]);
+                                        const pct = Math.min(99, Math.round((currentFrame / expectedFrames) * 100));
+                                        if (pct > lastProgress) {
+                                            lastProgress = pct;
+                                            document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
+                                            document.querySelector('.loading-progress-fill').style.width = pct + '%';
+                                            document.querySelector('.loading-progress-text').textContent = pct + '%';
+                                        }
+                                    }
+                                }
+                            });
+
                             await ffmpeg.load();
-                            document.querySelector('.loading-progress-text').textContent = 'Processing...';
+                            document.querySelector('.loading-progress-text').textContent = '0%';
+                            document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
 
                             // Write WebM to FFmpeg filesystem
                             ffmpeg.FS('writeFile', 'input.webm', await fetchFile(recordedBlob));
