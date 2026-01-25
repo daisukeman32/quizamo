@@ -1434,7 +1434,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.0.4</span>
+            <span class="version">v3.0.5</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -4093,13 +4093,18 @@
                                 }
                             });
 
-                            // Set custom logger to parse frame progress
+                            // Set custom logger to parse time-based progress
+                            const totalDuration = this.videoDuration;
                             ffmpeg.setLogger(({ type, message }) => {
-                                if (type === 'fferr' && message.includes('frame=')) {
-                                    const frameMatch = message.match(/frame=\s*(\d+)/);
-                                    if (frameMatch) {
-                                        const currentFrame = parseInt(frameMatch[1]);
-                                        const pct = Math.min(99, Math.round((currentFrame / expectedFrames) * 100));
+                                if (type === 'fferr' && message.includes('time=')) {
+                                    // Parse time=00:00:01.32 format
+                                    const timeMatch = message.match(/time=(\d+):(\d+):(\d+\.?\d*)/);
+                                    if (timeMatch) {
+                                        const hours = parseInt(timeMatch[1]);
+                                        const minutes = parseInt(timeMatch[2]);
+                                        const seconds = parseFloat(timeMatch[3]);
+                                        const currentTime = hours * 3600 + minutes * 60 + seconds;
+                                        const pct = Math.min(99, Math.round((currentTime / totalDuration) * 100));
                                         if (pct > lastProgress) {
                                             lastProgress = pct;
                                             document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
