@@ -1438,7 +1438,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.1.1</span>
+            <span class="version">v3.1.2</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -4044,6 +4044,7 @@
 
                     // Start recording
                     mediaRecorder.start(100); // Collect data every 100ms
+                    const recordingStartTime = performance.now();
 
                     // Process frames
                     this.video.currentTime = 0;
@@ -4095,6 +4096,8 @@
 
                     await processFrame();
                     const recordedBlob = await recordingComplete;
+                    const recordingEndTime = performance.now();
+                    const actualRecordedDuration = (recordingEndTime - recordingStartTime) / 1000; // in seconds
 
                     // Convert WebM to MP4 using FFmpeg
                     let finalBlob = recordedBlob;
@@ -4134,7 +4137,8 @@
                             });
 
                             // Set custom logger to parse time-based progress
-                            const totalDuration = this.videoDuration;
+                            // Use actual recorded duration, not original video duration
+                            const totalDuration = actualRecordedDuration;
                             ffmpeg.setLogger(({ type, message }) => {
                                 if (type === 'fferr' && message.includes('time=')) {
                                     // Parse time=00:00:01.32 format
