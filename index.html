@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QUIZAMO Web - Mosaic Tool</title>
+    <!-- FFmpeg for MP4 conversion (0.11.x - no SharedArrayBuffer required) -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600&display=swap');
 
@@ -171,8 +173,16 @@
         }
 
         .toggle-switch.day::before,
-        .toggle-switch.ja::before {
+        .toggle-switch.ja::before,
+        .toggle-switch.video::before {
             transform: translateX(26px);
+        }
+
+        /* Mode Toggle Icons */
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .toggle-icon {
@@ -225,6 +235,490 @@
 
         body.day-mode .action-btn.primary:hover:not(:disabled) {
             background: #00aa55;
+        }
+
+        /* Video Mode Styles */
+        .video-controls {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            padding: 15px;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-top: none;
+        }
+
+        body.video-mode .video-controls {
+            display: flex;
+        }
+
+        body.video-mode .navigation {
+            display: none;
+        }
+
+        /* Hide photo-only elements in video mode */
+        body.video-mode .photo-only {
+            display: none !important;
+        }
+
+        /* Show video-only elements only in video mode */
+        .video-only {
+            display: none;
+        }
+
+        body.video-mode .video-only {
+            display: block;
+        }
+
+        /* Make export button full width in video mode */
+        body.video-mode .section-actions .action-grid {
+            display: flex;
+        }
+
+        body.video-mode .section-actions .export-video-btn {
+            width: 100%;
+        }
+
+        .video-playback {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .play-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .play-btn:hover {
+            background: var(--hover);
+        }
+
+        .timeline-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .timeline {
+            width: 100%;
+            height: 8px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .timeline-progress {
+            height: 100%;
+            background: var(--text-primary);
+            width: 0%;
+            transition: width 0.1s linear;
+            pointer-events: none;
+        }
+
+        .timeline-handle {
+            position: absolute;
+            top: 50%;
+            left: 0%;
+            width: 12px;
+            height: 12px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.15s ease;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .timeline:hover .timeline-handle,
+        .timeline.dragging .timeline-handle {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .timeline.dragging .timeline-handle {
+            transform: translate(-50%, -50%) scale(1.3);
+        }
+
+        .timeline.dragging .timeline-progress {
+            transition: none;
+        }
+
+        .timeline-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: var(--text-secondary);
+        }
+
+        .timecode {
+            font-family: monospace;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .frame-nav {
+            display: flex;
+            gap: 5px;
+        }
+
+        .frame-btn {
+            padding: 8px 12px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .frame-btn:hover {
+            background: var(--hover);
+        }
+
+        .frame-btn .shortcut {
+            opacity: 0.5;
+            margin-left: 4px;
+        }
+
+        /* Video mode specific input section */
+        body.video-mode .photo-input {
+            display: none;
+        }
+
+        body.video-mode .video-input {
+            display: block;
+        }
+
+        .video-input {
+            display: none;
+        }
+
+        /* Export button for video */
+        .export-video-btn {
+            display: none;
+        }
+
+        body.video-mode .export-video-btn {
+            display: flex;
+        }
+
+        body.video-mode .photo-save-btn {
+            display: none;
+        }
+
+        /* Hidden video element */
+        #videoElement {
+            display: none;
+        }
+
+        /* Region Editor Styles */
+        .region-overlay {
+            position: absolute;
+            border: 2px dashed rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.1);
+            cursor: move;
+            z-index: 100;
+            display: none;
+            box-sizing: border-box;
+        }
+
+        .region-overlay.active {
+            display: block;
+        }
+
+        .region-overlay.ellipse {
+            border-radius: 50%;
+        }
+
+        .region-overlay.diamond {
+            transform: rotate(45deg);
+        }
+
+        .region-overlay.diamond .region-label {
+            transform: rotate(-45deg);
+            top: -25px;
+            left: 10px;
+        }
+
+        .region-overlay.diamond .resize-handle {
+            transform: rotate(-45deg);
+        }
+
+        .region-overlay .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: white;
+            border: 1px solid #333;
+        }
+
+        .region-overlay .resize-handle.se {
+            right: -5px;
+            bottom: -5px;
+            cursor: se-resize;
+        }
+
+        .region-overlay .resize-handle.e {
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: e-resize;
+        }
+
+        .region-overlay .resize-handle.s {
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: s-resize;
+        }
+
+        .region-overlay .rotate-handle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #4a9eff;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: grab;
+            z-index: 10;
+        }
+
+        .region-overlay .rotate-handle:active {
+            cursor: grabbing;
+        }
+
+        .region-overlay .rotate-line {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: #4a9eff;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+
+        .region-overlay.diamond .rotate-handle,
+        .region-overlay.diamond .rotate-line {
+            transform: translateX(-50%) rotate(-45deg);
+        }
+
+        .region-overlay .move-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 3px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: move;
+            z-index: 10;
+        }
+
+        .region-overlay .move-handle::before,
+        .region-overlay .move-handle::after {
+            content: '';
+            position: absolute;
+            background: #333;
+        }
+
+        .region-overlay .move-handle::before {
+            width: 8px;
+            height: 2px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .region-overlay .move-handle::after {
+            width: 2px;
+            height: 8px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .region-overlay.diamond .move-handle {
+            transform: translate(-50%, -50%) rotate(-45deg);
+        }
+
+        .region-label {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            font-size: 9px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 6px;
+            white-space: nowrap;
+        }
+
+        /* Region Settings Panel */
+        .region-settings {
+            display: none;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+
+        body.video-mode .region-settings {
+            display: block;
+        }
+
+        .shape-selector {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .shape-btn {
+            flex: 1;
+            padding: 8px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .shape-btn:hover {
+            background: var(--hover);
+        }
+
+        .shape-btn.active {
+            background: var(--hover);
+            color: var(--text-primary);
+            border-color: var(--text-primary);
+        }
+
+        /* Recording Indicator */
+        .recording-indicator {
+            display: none;
+            color: #ff4444;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 4px 10px;
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid #ff4444;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            animation: pulse 1s infinite;
+        }
+
+        .recording-indicator.active {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Playback Speed Control */
+        .speed-control {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .speed-btn {
+            flex: 1;
+            padding: 6px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 9px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .speed-btn:hover {
+            background: var(--hover);
+        }
+
+        .speed-btn.active {
+            background: var(--hover);
+            color: var(--text-primary);
+            border-color: var(--text-primary);
+        }
+
+        /* Add Region Button */
+        .add-region-btn {
+            width: 100%;
+            padding: 8px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+
+        .add-region-btn:hover {
+            background: var(--hover);
+        }
+
+        /* Region List */
+        .region-list {
+            max-height: 100px;
+            overflow-y: auto;
+            margin-top: 8px;
+        }
+
+        .region-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            margin-bottom: 4px;
+            font-size: 9px;
+        }
+
+        .region-item.selected {
+            border-color: var(--text-primary);
+        }
+
+        .region-item-name {
+            color: var(--text-primary);
+        }
+
+        .region-item-delete {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .region-item-delete:hover {
+            color: #ff4444;
         }
 
         /* Main Container */
@@ -903,318 +1397,6 @@
             color: #ff4444;
         }
 
-        /* Mode Toggle */
-        .mode-toggle {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-right: 15px;
-            padding-right: 15px;
-            border-right: 1px solid var(--border);
-        }
-
-        .toggle-switch.video::before {
-            transform: translateX(26px);
-        }
-
-        /* Video Mode Specific Styles */
-        .photo-only { display: block; }
-        .video-only { display: none; }
-
-        body.video-mode .photo-only { display: none; }
-        body.video-mode .video-only { display: block; }
-        body.video-mode .photo-only-flex { display: none; }
-        body.video-mode .video-only-flex { display: flex; }
-
-        /* Video Controls */
-        .video-controls {
-            background: var(--secondary);
-            border: 1px solid var(--border);
-            padding: 15px;
-            display: none;
-        }
-
-        body.video-mode .video-controls {
-            display: block;
-        }
-
-        .video-timeline {
-            margin-bottom: 15px;
-        }
-
-        .timeline-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--border);
-            border-radius: 4px;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .timeline-progress {
-            height: 100%;
-            background: var(--text-primary);
-            border-radius: 4px;
-            width: 0%;
-            transition: width 0.1s;
-        }
-
-        .timeline-cursor {
-            position: absolute;
-            top: -4px;
-            width: 16px;
-            height: 16px;
-            background: var(--text-primary);
-            border-radius: 50%;
-            transform: translateX(-50%);
-            cursor: grab;
-        }
-
-        .video-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-            color: var(--text-secondary);
-            margin-top: 8px;
-        }
-
-        .playback-controls {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .play-btn {
-            flex: 1;
-            padding: 12px;
-            background: var(--primary);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .play-btn:hover {
-            background: var(--hover);
-        }
-
-        .play-btn.active {
-            background: #ff4444;
-            border-color: #ff4444;
-        }
-
-        .speed-control {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .speed-label {
-            font-size: 10px;
-            color: var(--text-secondary);
-        }
-
-        .speed-buttons {
-            display: flex;
-            gap: 4px;
-        }
-
-        .speed-btn {
-            padding: 6px 10px;
-            background: var(--primary);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 10px;
-            cursor: pointer;
-        }
-
-        .speed-btn.active {
-            background: var(--text-primary);
-            color: var(--primary);
-        }
-
-        /* Region Settings */
-        .region-settings {
-            background: var(--secondary);
-            border: 1px solid var(--border);
-            padding: 15px;
-            display: none;
-        }
-
-        body.video-mode .region-settings {
-            display: block;
-        }
-
-        .region-shape-buttons {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 10px;
-        }
-
-        .shape-btn {
-            flex: 1;
-            padding: 10px;
-            background: var(--primary);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 10px;
-            cursor: pointer;
-            text-align: center;
-        }
-
-        .shape-btn:hover {
-            background: var(--hover);
-        }
-
-        .shape-btn.active {
-            background: var(--text-primary);
-            color: var(--primary);
-        }
-
-        .add-region-btn {
-            width: 100%;
-            padding: 12px;
-            background: var(--text-primary);
-            border: none;
-            color: var(--primary);
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-bottom: 10px;
-        }
-
-        .add-region-btn:hover {
-            background: #00ff88;
-        }
-
-        .region-list {
-            max-height: 150px;
-            overflow-y: auto;
-        }
-
-        .region-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px;
-            background: var(--primary);
-            border: 1px solid var(--border);
-            margin-bottom: 4px;
-            font-size: 10px;
-        }
-
-        .region-item.selected {
-            border-color: var(--text-primary);
-        }
-
-        .region-item-name {
-            color: var(--text-primary);
-        }
-
-        .region-item-delete {
-            background: none;
-            border: none;
-            color: #ff4444;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        /* REC Indicator */
-        .rec-indicator {
-            display: none;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            background: #ff4444;
-            color: white;
-            font-size: 11px;
-            font-weight: 600;
-            border-radius: 4px;
-        }
-
-        .rec-indicator.active {
-            display: flex;
-        }
-
-        .rec-dot {
-            width: 8px;
-            height: 8px;
-            background: white;
-            border-radius: 50%;
-            animation: recBlink 1s infinite;
-        }
-
-        @keyframes recBlink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
-        }
-
-        /* Export Button for Video */
-        .export-btn {
-            width: 100%;
-            padding: 15px;
-            background: #00ff88;
-            border: none;
-            color: #000;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-
-        .export-btn:hover {
-            background: #00cc66;
-        }
-
-        .export-btn:disabled {
-            background: var(--border);
-            color: var(--text-secondary);
-            cursor: not-allowed;
-        }
-
-        /* Video element hidden */
-        #videoElement {
-            display: none;
-        }
-
-        /* Region overlay on canvas */
-        .region-overlay {
-            position: absolute;
-            border: 2px dashed rgba(255, 255, 255, 0.8);
-            background: rgba(255, 255, 255, 0.1);
-            cursor: move;
-            pointer-events: auto;
-        }
-
-        .region-overlay.rectangle {
-            border-radius: 0;
-        }
-
-        .region-overlay.ellipse {
-            border-radius: 50%;
-        }
-
-        .region-overlay.diamond {
-            transform: rotate(45deg);
-        }
-
-        .region-resize-handle {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: white;
-            border: 1px solid #000;
-        }
-
-        .region-resize-handle.se {
-            bottom: -5px;
-            right: -5px;
-            cursor: se-resize;
-        }
-
         /* Responsive */
         @media (max-width: 1024px) {
             .main-container {
@@ -1231,8 +1413,6 @@
             }
         }
     </style>
-    <!-- FFmpeg.wasm for video export -->
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 </head>
 <body>
     <header class="header">
@@ -1243,11 +1423,10 @@
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
-            <!-- Mode Toggle (Photo/Video) -->
             <div class="mode-toggle">
-                <span class="toggle-icon photo active" id="photoIcon">📷</span>
+                <span class="toggle-icon active" id="photoIcon">📷</span>
                 <div class="toggle-switch" id="modeToggle"></div>
-                <span class="toggle-icon video" id="videoIcon">🎬</span>
+                <span class="toggle-icon" id="videoIcon">🎬</span>
             </div>
             <div class="lang-toggle">
                 <span class="toggle-label active" id="enLabel">EN</span>
@@ -1271,10 +1450,17 @@
                 </div>
                 <canvas id="canvas" style="display: none;"></canvas>
                 <div class="cursor-preview" id="cursorPreview"></div>
+                <!-- Region Overlay for Video Mode -->
+                <div class="region-overlay" id="regionOverlay">
+                    <div class="region-label" id="regionLabel">BLUR</div>
+                    <div class="rotate-line"></div>
+                    <div class="rotate-handle"></div>
+                    <div class="move-handle"></div>
+                    <div class="resize-handle se"></div>
+                </div>
             </div>
 
-            <!-- Photo Mode Navigation -->
-            <div class="navigation photo-only">
+            <div class="navigation">
                 <button class="nav-btn" id="prevBtn"><span data-i18n="prev">PREVIOUS</span> <span class="shortcut">[A]</span></button>
                 <button class="nav-btn" id="zoomOutBtn"><span data-i18n="zoomOut">ZOOM -</span> <span class="shortcut">[Q]</span></button>
                 <button class="nav-btn" id="zoomResetBtn">100%</button>
@@ -1282,100 +1468,61 @@
                 <button class="nav-btn" id="nextBtn"><span data-i18n="next">NEXT</span> <span class="shortcut">[D]</span></button>
             </div>
 
-            <!-- Video Mode Controls -->
-            <div class="video-controls video-only">
-                <div class="video-timeline">
-                    <div class="timeline-bar" id="timelineBar">
-                        <div class="timeline-progress" id="timelineProgress"></div>
-                        <div class="timeline-cursor" id="timelineCursor"></div>
-                    </div>
-                    <div class="video-info">
-                        <span id="currentTime">00:00:00</span>
-                        <span id="frameInfo">Frame: 0 / 0</span>
-                        <span id="totalTime">00:00:00</span>
-                    </div>
-                </div>
-
-                <div class="playback-controls">
-                    <button class="play-btn" id="playBtn">▶ PLAY</button>
-                    <button class="play-btn" id="prevFrameBtn">◀◀ -1F</button>
-                    <button class="play-btn" id="nextFrameBtn">+1F ▶▶</button>
-                    <div class="rec-indicator" id="recIndicator">
-                        <span class="rec-dot"></span>
-                        <span>REC</span>
-                    </div>
-                </div>
-
+            <!-- Video Controls -->
+            <div class="video-controls" id="videoControls">
+                <div class="recording-indicator" id="recordingIndicator">● REC</div>
                 <div class="speed-control">
-                    <span class="speed-label">SPEED:</span>
-                    <div class="speed-buttons">
-                        <button class="speed-btn" data-speed="0.1">0.1x</button>
-                        <button class="speed-btn" data-speed="0.25">0.25x</button>
-                        <button class="speed-btn active" data-speed="0.5">0.5x</button>
-                        <button class="speed-btn" data-speed="1">1x</button>
+                    <button class="speed-btn" data-speed="0.1">0.1x</button>
+                    <button class="speed-btn" data-speed="0.25">0.25x</button>
+                    <button class="speed-btn active" data-speed="0.5">0.5x</button>
+                    <button class="speed-btn" data-speed="0.75">0.75x</button>
+                    <button class="speed-btn" data-speed="1">1x</button>
+                </div>
+                <div class="video-playback">
+                    <button class="play-btn" id="playPauseBtn">▶</button>
+                    <div class="timeline-container">
+                        <div class="timeline" id="timeline">
+                            <div class="timeline-progress" id="timelineProgress"></div>
+                            <div class="timeline-handle" id="timelineHandle"></div>
+                        </div>
+                        <div class="timeline-info">
+                            <span class="timecode" id="currentTime">00:00:00</span>
+                            <span id="frameInfo" data-i18n="frame">Frame</span>: <span id="currentFrame">0</span> / <span id="totalFrames">0</span>
+                            <span class="timecode" id="totalTime">00:00:00</span>
+                        </div>
                     </div>
+                </div>
+                <div class="frame-nav">
+                    <button class="frame-btn" id="frameBackBtn">◀ <span data-i18n="backFrame">-1F</span><span class="shortcut">[←]</span></button>
+                    <button class="frame-btn" id="frameForwardBtn"><span data-i18n="forwardFrame">+1F</span> ▶<span class="shortcut">[→]</span></button>
+                    <button class="frame-btn" id="undoRegionBtn"><span data-i18n="undoPosition">UNDO POS</span><span class="shortcut">[Z]</span></button>
+                    <button class="frame-btn" id="zoomOutBtnVideo">-<span class="shortcut">[Q]</span></button>
+                    <span id="zoomLevelVideo" style="font-size: 9px; color: var(--text-primary); padding: 8px;">100%</span>
+                    <button class="frame-btn" id="zoomInBtnVideo">+<span class="shortcut">[E]</span></button>
                 </div>
             </div>
 
-            <!-- Hidden Video Element -->
-            <video id="videoElement"></video>
+            <!-- Hidden video element -->
+            <video id="videoElement" muted></video>
         </div>
 
         <div class="controls-panel">
-            <!-- Video Mode: Region Settings -->
-            <div class="region-settings video-only">
-                <div class="section-title">REGION SETTINGS</div>
-
-                <div class="region-shape-buttons">
-                    <button class="shape-btn active" data-shape="rectangle">□ 矩形</button>
-                    <button class="shape-btn" data-shape="ellipse">○ 楕円</button>
-                    <button class="shape-btn" data-shape="diamond">◇ ダイヤ</button>
+            <!-- Region Settings (Video Mode Only) -->
+            <div class="region-settings" id="regionSettings">
+                <div class="section-title" data-i18n="regionSettings">Region Settings</div>
+                <div class="shape-selector">
+                    <button type="button" class="shape-btn active" data-shape="rect" title="Rectangle">▢</button>
+                    <button type="button" class="shape-btn" data-shape="ellipse" title="Ellipse">⬭</button>
+                    <button type="button" class="shape-btn" data-shape="diamond" title="Diamond">◇</button>
                 </div>
-
-                <div class="slider-group">
-                    <div class="slider-label">
-                        <span class="slider-name">INTENSITY</span>
-                        <span class="slider-value" id="videoIntensityValue">15</span>
-                    </div>
-                    <div class="slider-track">
-                        <input type="range" id="videoIntensity" min="1" max="50" value="15">
-                    </div>
-                </div>
-
-                <div class="select-wrapper" style="margin-bottom: 10px;">
-                    <select id="videoMosaicType">
-                        <option value="pixelate">PIXELATE</option>
-                        <option value="blur">GAUSSIAN BLUR</option>
-                        <option value="mosaic">MOSAIC TILE</option>
-                    </select>
-                </div>
-
-                <button class="add-region-btn" id="addRegionBtn">+ ADD REGION</button>
-
-                <div class="region-list" id="regionList">
-                    <!-- Regions will be added here -->
-                </div>
-
-                <button class="export-btn" id="exportBtn" disabled>EXPORT VIDEO (MP4)</button>
+                <button type="button" class="add-region-btn" id="addRegionBtn" data-i18n="addRegion">+ ADD REGION</button>
+                <div class="region-list" id="regionList"></div>
             </div>
 
-            <!-- Video Mode: Input -->
-            <div class="control-section video-only">
-                <div class="section-title">VIDEO INPUT</div>
-                <div class="file-input-area" id="videoInputArea">
-                    <label class="file-input-label">
-                        <input type="file" id="videoInput" accept="video/*">
-                        <div class="upload-icon"></div>
-                        <div class="file-input-text">SELECT VIDEO</div>
-                        <div class="file-count" id="videoName"></div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Photo Mode Controls (existing) -->
-            <div class="control-section photo-only">
-                <div class="section-title" data-i18n="intensityPresets">Intensity Presets</div>
-                <div class="preset-grid">
+            <div class="control-section" id="intensitySection">
+                <div class="section-title photo-only" data-i18n="intensityPresets">Intensity Presets</div>
+                <div class="section-title video-only" data-i18n="mosaicSettings">Mosaic Settings</div>
+                <div class="preset-grid photo-only">
                     <button class="preset-btn" data-value="1" id="preset1">
                         <span data-i18n="presetMin">MIN</span>
                         <span class="key">[1]</span>
@@ -1398,7 +1545,7 @@
                     </button>
                 </div>
 
-                <div class="slider-group">
+                <div class="slider-group photo-only">
                     <div class="slider-label">
                         <span class="slider-name" data-i18n="brushSize">BRUSH SIZE</span>
                         <span class="slider-value" id="brushSizeValue">30</span>
@@ -1427,14 +1574,24 @@
                 </div>
             </div>
 
-            <div class="control-section photo-only">
+            <div class="control-section">
                 <div class="section-title" data-i18n="input">Input</div>
-                <div class="file-input-area" id="fileInputArea">
+                <!-- Photo Input -->
+                <div class="file-input-area photo-input" id="fileInputArea">
                     <label class="file-input-label">
                         <input type="file" id="fileInput" multiple accept="image/*">
                         <div class="upload-icon"></div>
                         <div class="file-input-text" data-i18n="selectFiles">SELECT FILES</div>
                         <div class="file-count" id="fileCount"></div>
+                    </label>
+                </div>
+                <!-- Video Input -->
+                <div class="file-input-area video-input" id="videoInputArea">
+                    <label class="file-input-label">
+                        <input type="file" id="videoInput" accept="video/*">
+                        <div class="upload-icon"></div>
+                        <div class="file-input-text" data-i18n="selectVideo">SELECT VIDEO</div>
+                        <div class="file-count" id="videoName"></div>
                     </label>
                 </div>
             </div>
@@ -1480,16 +1637,17 @@
                 </div>
             </div>
 
-            <div class="control-section section-actions photo-only">
-                <div class="section-title" data-i18n="actions">Actions</div>
+            <div class="control-section section-actions">
+                <div class="section-title photo-only" data-i18n="actions">Actions</div>
                 <div class="action-grid">
-                    <button class="action-btn" id="undoBtn"><span data-i18n="undo">UNDO</span> <span class="shortcut">[Z]</span></button>
-                    <button class="action-btn" id="redoBtn"><span data-i18n="redo">REDO</span> <span class="shortcut">[Y]</span></button>
-                    <button class="action-btn" id="clearBtn"><span data-i18n="clear">CLEAR</span> <span class="shortcut">[C]</span></button>
-                    <button class="action-btn" id="resetBtn"><span data-i18n="reset">RESET</span> <span class="shortcut">[R]</span></button>
-                    <button class="action-btn" id="prevBtn2"><span data-i18n="prevShort">PREV</span> <span class="shortcut">[A]</span></button>
-                    <button class="action-btn" id="nextBtn2"><span data-i18n="nextShort">NEXT</span> <span class="shortcut">[D]</span></button>
-                    <button class="action-btn primary" id="saveBtn"><span data-i18n="save">SAVE</span> <span class="shortcut">[S]</span></button>
+                    <button class="action-btn photo-only" id="undoBtn"><span data-i18n="undo">UNDO</span> <span class="shortcut">[Z]</span></button>
+                    <button class="action-btn photo-only" id="redoBtn"><span data-i18n="redo">REDO</span> <span class="shortcut">[Y]</span></button>
+                    <button class="action-btn photo-only" id="clearBtn"><span data-i18n="clear">CLEAR</span> <span class="shortcut">[C]</span></button>
+                    <button class="action-btn photo-only" id="resetBtn"><span data-i18n="reset">RESET</span> <span class="shortcut">[R]</span></button>
+                    <button class="action-btn photo-only" id="prevBtn2"><span data-i18n="prevShort">PREV</span> <span class="shortcut">[A]</span></button>
+                    <button class="action-btn photo-only" id="nextBtn2"><span data-i18n="nextShort">NEXT</span> <span class="shortcut">[D]</span></button>
+                    <button class="action-btn primary photo-save-btn" id="saveBtn"><span data-i18n="save">SAVE</span> <span class="shortcut">[S]</span></button>
+                    <button class="action-btn primary export-video-btn" id="exportVideoBtn"><span data-i18n="exportVideo">EXPORT VIDEO</span></button>
                 </div>
             </div>
 
@@ -1500,17 +1658,6 @@
                     <span class="sk">[ / ]</span><span class="sd" data-i18n="brushSizePM">Brush Size ±</span>
                     <span class="sk">Q / E</span><span class="sd" data-i18n="zoomPM">Zoom ±</span>
                     <span class="sk">Wheel</span><span class="sd" data-i18n="zoom">Zoom</span>
-                </div>
-            </div>
-
-            <!-- Video Mode Shortcuts -->
-            <div class="shortcuts-panel video-only">
-                <div class="section-title">VIDEO SHORTCUTS</div>
-                <div class="shortcuts-grid">
-                    <span class="sk">Space</span><span class="sd">Play / Pause</span>
-                    <span class="sk">← / →</span><span class="sd">Frame ±1</span>
-                    <span class="sk">Drag</span><span class="sd">Move Region</span>
-                    <span class="sk">Shift+Drag</span><span class="sd">Resize</span>
                 </div>
             </div>
 
@@ -1527,851 +1674,6 @@
     <div class="status-bar" id="statusBar"></div>
 
     <script>
-        // ==================== VIDEO MODE CLASS ====================
-        class VideoMosaicTool {
-            constructor() {
-                this.video = document.getElementById('videoElement');
-                this.canvas = document.getElementById('canvas');
-                this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
-
-                this.isVideoMode = false;
-                this.isPlaying = false;
-                this.playbackSpeed = 0.5;
-                this.fps = 30;
-                this.totalFrames = 0;
-                this.currentFrameNumber = 0;
-
-                // Regions
-                this.regions = [];
-                this.selectedRegionIndex = -1;
-                this.selectedShape = 'rectangle';
-                this.regionIdCounter = 0;
-
-                // Position recording per frame
-                this.regionPositions = new Map(); // frameNumber -> [{id, x, y, width, height, rotation}]
-
-                // Drag state
-                this.isDragging = false;
-                this.isResizing = false;
-                this.isRotating = false;
-                this.dragStart = { x: 0, y: 0 };
-                this.dragOffset = { x: 0, y: 0 };
-
-                // Playback
-                this.playbackInterval = null;
-
-                this.initVideoMode();
-            }
-
-            initVideoMode() {
-                // Mode toggle
-                document.getElementById('modeToggle').addEventListener('click', () => this.toggleMode());
-
-                // Video input
-                document.getElementById('videoInput').addEventListener('change', (e) => this.loadVideo(e));
-                document.getElementById('videoInputArea').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    document.getElementById('videoInput').click();
-                });
-
-                // Shape buttons
-                document.querySelectorAll('.shape-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        this.selectedShape = btn.dataset.shape;
-                    });
-                });
-
-                // Add region button
-                document.getElementById('addRegionBtn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.addRegion();
-                });
-
-                // Intensity slider
-                document.getElementById('videoIntensity').addEventListener('input', (e) => {
-                    document.getElementById('videoIntensityValue').textContent = e.target.value;
-                    if (this.selectedRegionIndex >= 0) {
-                        this.regions[this.selectedRegionIndex].intensity = parseInt(e.target.value);
-                        this.renderVideoFrame();
-                    }
-                });
-
-                // Mosaic type
-                document.getElementById('videoMosaicType').addEventListener('change', (e) => {
-                    if (this.selectedRegionIndex >= 0) {
-                        this.regions[this.selectedRegionIndex].mosaicType = e.target.value;
-                        this.renderVideoFrame();
-                    }
-                });
-
-                // Playback controls
-                document.getElementById('playBtn').addEventListener('click', () => this.togglePlayback());
-                document.getElementById('prevFrameBtn').addEventListener('click', () => this.stepFrame(-1));
-                document.getElementById('nextFrameBtn').addEventListener('click', () => this.stepFrame(1));
-
-                // Speed buttons
-                document.querySelectorAll('.speed-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        this.playbackSpeed = parseFloat(btn.dataset.speed);
-                    });
-                });
-
-                // Timeline
-                document.getElementById('timelineBar').addEventListener('click', (e) => this.seekTimeline(e));
-
-                // Export button
-                document.getElementById('exportBtn').addEventListener('click', () => this.exportVideo());
-
-                // Canvas mouse events for region manipulation
-                this.canvas.addEventListener('mousedown', (e) => this.onCanvasMouseDown(e));
-                document.addEventListener('mousemove', (e) => this.onCanvasMouseMove(e));
-                document.addEventListener('mouseup', (e) => this.onCanvasMouseUp(e));
-
-                // Keyboard shortcuts for video mode
-                document.addEventListener('keydown', (e) => {
-                    if (!this.isVideoMode) return;
-                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-
-                    switch(e.key) {
-                        case ' ':
-                            e.preventDefault();
-                            this.togglePlayback();
-                            break;
-                        case 'ArrowLeft':
-                            e.preventDefault();
-                            this.stepFrame(-1);
-                            break;
-                        case 'ArrowRight':
-                            e.preventDefault();
-                            this.stepFrame(1);
-                            break;
-                        case 'Delete':
-                        case 'Backspace':
-                            e.preventDefault();
-                            this.deleteSelectedRegion();
-                            break;
-                    }
-                });
-            }
-
-            toggleMode() {
-                this.isVideoMode = !this.isVideoMode;
-                document.body.classList.toggle('video-mode', this.isVideoMode);
-                document.getElementById('modeToggle').classList.toggle('video', this.isVideoMode);
-                document.getElementById('photoIcon').classList.toggle('active', !this.isVideoMode);
-                document.getElementById('videoIcon').classList.toggle('active', this.isVideoMode);
-
-                // Reset canvas when switching modes
-                if (this.isVideoMode) {
-                    this.canvas.style.display = 'none';
-                    document.getElementById('dropHint').classList.remove('hidden');
-                    document.getElementById('dropHint').innerHTML = '<span>DROP VIDEO HERE</span><br><span style="font-size: 10px; opacity: 0.5;">or click to select video</span>';
-                } else {
-                    document.getElementById('dropHint').innerHTML = '<span data-i18n="dropHint">DROP IMAGES HERE</span><br><span style="font-size: 10px; opacity: 0.5;" data-i18n="dropHintSub">or click to select files</span>';
-                }
-            }
-
-            async loadVideo(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const url = URL.createObjectURL(file);
-                this.video.src = url;
-
-                this.video.onloadedmetadata = () => {
-                    this.canvas.width = this.video.videoWidth;
-                    this.canvas.height = this.video.videoHeight;
-                    this.canvas.style.display = 'block';
-                    document.getElementById('dropHint').classList.add('hidden');
-
-                    // Calculate FPS and total frames
-                    this.fps = 30; // Assume 30fps
-                    this.totalFrames = Math.floor(this.video.duration * this.fps);
-
-                    document.getElementById('videoName').textContent = file.name;
-                    document.getElementById('totalTime').textContent = this.formatTime(this.video.duration);
-                    document.getElementById('frameInfo').textContent = `Frame: 0 / ${this.totalFrames}`;
-
-                    this.video.currentTime = 0;
-                };
-
-                this.video.onseeked = () => {
-                    this.renderVideoFrame();
-                };
-
-                this.video.onended = () => {
-                    this.stopPlayback();
-                };
-            }
-
-            renderVideoFrame() {
-                if (!this.video.src) return;
-
-                // Draw video frame
-                this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
-
-                // Apply mosaic to regions
-                this.applyRegionMosaics();
-
-                // Draw region overlays
-                this.drawRegionOverlays();
-
-                // Update time display
-                document.getElementById('currentTime').textContent = this.formatTime(this.video.currentTime);
-                this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
-                document.getElementById('frameInfo').textContent = `Frame: ${this.currentFrameNumber} / ${this.totalFrames}`;
-
-                // Update timeline
-                const progress = (this.video.currentTime / this.video.duration) * 100;
-                document.getElementById('timelineProgress').style.width = progress + '%';
-                document.getElementById('timelineCursor').style.left = progress + '%';
-            }
-
-            applyRegionMosaics() {
-                for (const region of this.regions) {
-                    // Get position for this frame (or use current position)
-                    const framePositions = this.regionPositions.get(this.currentFrameNumber);
-                    let pos = framePositions?.find(p => p.id === region.id);
-
-                    if (!pos) {
-                        pos = { x: region.x, y: region.y, width: region.width, height: region.height, rotation: region.rotation };
-                    }
-
-                    this.applyMosaicToRegion(pos, region.shape, region.intensity, region.mosaicType);
-                }
-            }
-
-            applyMosaicToRegion(pos, shape, intensity, mosaicType) {
-                const { x, y, width, height, rotation } = pos;
-                const blockSize = Math.max(1, intensity);
-
-                // Get image data for the region
-                const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                const data = imageData.data;
-
-                const centerX = x + width / 2;
-                const centerY = y + height / 2;
-                const cos = Math.cos(-rotation || 0);
-                const sin = Math.sin(-rotation || 0);
-
-                for (let py = Math.max(0, Math.floor(y - height/2)); py < Math.min(this.canvas.height, Math.ceil(y + height * 1.5)); py++) {
-                    for (let px = Math.max(0, Math.floor(x - width/2)); px < Math.min(this.canvas.width, Math.ceil(x + width * 1.5)); px++) {
-                        // Transform point to check if inside region
-                        const dx = px - centerX;
-                        const dy = py - centerY;
-                        const rx = dx * cos - dy * sin;
-                        const ry = dx * sin + dy * cos;
-
-                        let inside = false;
-                        if (shape === 'rectangle') {
-                            inside = Math.abs(rx) <= width/2 && Math.abs(ry) <= height/2;
-                        } else if (shape === 'ellipse') {
-                            inside = (rx*rx)/(width*width/4) + (ry*ry)/(height*height/4) <= 1;
-                        } else if (shape === 'diamond') {
-                            inside = Math.abs(rx)/(width/2) + Math.abs(ry)/(height/2) <= 1;
-                        }
-
-                        if (inside) {
-                            // Apply mosaic effect
-                            const blockX = Math.floor(px / blockSize) * blockSize;
-                            const blockY = Math.floor(py / blockSize) * blockSize;
-
-                            // Get average color of block
-                            let r = 0, g = 0, b = 0, count = 0;
-                            for (let by = blockY; by < Math.min(blockY + blockSize, this.canvas.height); by++) {
-                                for (let bx = blockX; bx < Math.min(blockX + blockSize, this.canvas.width); bx++) {
-                                    const idx = (by * this.canvas.width + bx) * 4;
-                                    r += data[idx];
-                                    g += data[idx + 1];
-                                    b += data[idx + 2];
-                                    count++;
-                                }
-                            }
-
-                            if (count > 0) {
-                                const idx = (py * this.canvas.width + px) * 4;
-                                data[idx] = Math.floor(r / count);
-                                data[idx + 1] = Math.floor(g / count);
-                                data[idx + 2] = Math.floor(b / count);
-                            }
-                        }
-                    }
-                }
-
-                this.ctx.putImageData(imageData, 0, 0);
-            }
-
-            drawRegionOverlays() {
-                for (let i = 0; i < this.regions.length; i++) {
-                    const region = this.regions[i];
-                    const isSelected = i === this.selectedRegionIndex;
-
-                    this.ctx.save();
-                    this.ctx.translate(region.x + region.width/2, region.y + region.height/2);
-                    this.ctx.rotate(region.rotation || 0);
-
-                    // Draw shape outline
-                    this.ctx.strokeStyle = isSelected ? '#00ff88' : 'rgba(255,255,255,0.7)';
-                    this.ctx.lineWidth = isSelected ? 3 : 2;
-                    this.ctx.setLineDash([5, 5]);
-
-                    if (region.shape === 'rectangle') {
-                        this.ctx.strokeRect(-region.width/2, -region.height/2, region.width, region.height);
-                    } else if (region.shape === 'ellipse') {
-                        this.ctx.beginPath();
-                        this.ctx.ellipse(0, 0, region.width/2, region.height/2, 0, 0, Math.PI * 2);
-                        this.ctx.stroke();
-                    } else if (region.shape === 'diamond') {
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(0, -region.height/2);
-                        this.ctx.lineTo(region.width/2, 0);
-                        this.ctx.lineTo(0, region.height/2);
-                        this.ctx.lineTo(-region.width/2, 0);
-                        this.ctx.closePath();
-                        this.ctx.stroke();
-                    }
-
-                    this.ctx.setLineDash([]);
-
-                    if (isSelected) {
-                        // Move handle (center) - white with crosshair
-                        this.ctx.fillStyle = 'white';
-                        this.ctx.fillRect(-8, -8, 16, 16);
-                        this.ctx.strokeStyle = '#000';
-                        this.ctx.lineWidth = 1;
-                        this.ctx.strokeRect(-8, -8, 16, 16);
-                        // Crosshair
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(-4, 0);
-                        this.ctx.lineTo(4, 0);
-                        this.ctx.moveTo(0, -4);
-                        this.ctx.lineTo(0, 4);
-                        this.ctx.stroke();
-
-                        // Resize handle (bottom-right) - white
-                        this.ctx.fillStyle = 'white';
-                        this.ctx.fillRect(region.width/2 - 6, region.height/2 - 6, 12, 12);
-                        this.ctx.strokeRect(region.width/2 - 6, region.height/2 - 6, 12, 12);
-
-                        // Rotation handle (top) - blue
-                        this.ctx.fillStyle = '#4488ff';
-                        this.ctx.beginPath();
-                        this.ctx.arc(0, -region.height/2 - 20, 8, 0, Math.PI * 2);
-                        this.ctx.fill();
-                        this.ctx.strokeStyle = 'white';
-                        this.ctx.stroke();
-
-                        // Line to rotation handle
-                        this.ctx.strokeStyle = '#4488ff';
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(0, -region.height/2);
-                        this.ctx.lineTo(0, -region.height/2 - 12);
-                        this.ctx.stroke();
-                    }
-
-                    this.ctx.restore();
-                }
-            }
-
-            addRegion() {
-                if (!this.video.src) {
-                    alert('Please load a video first');
-                    return;
-                }
-
-                const region = {
-                    id: this.regionIdCounter++,
-                    shape: this.selectedShape,
-                    x: this.canvas.width / 2 - 250,
-                    y: this.canvas.height / 2 - 250,
-                    width: 500,
-                    height: 500,
-                    rotation: 0,
-                    intensity: parseInt(document.getElementById('videoIntensity').value),
-                    mosaicType: document.getElementById('videoMosaicType').value
-                };
-
-                this.regions.push(region);
-                this.selectedRegionIndex = this.regions.length - 1;
-                this.updateRegionList();
-                this.renderVideoFrame();
-
-                document.getElementById('exportBtn').disabled = false;
-            }
-
-            updateRegionList() {
-                const list = document.getElementById('regionList');
-                list.innerHTML = '';
-
-                this.regions.forEach((region, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'region-item' + (index === this.selectedRegionIndex ? ' selected' : '');
-
-                    const shapeIcon = region.shape === 'rectangle' ? '□' : region.shape === 'ellipse' ? '○' : '◇';
-                    item.innerHTML = `
-                        <span class="region-item-name">${shapeIcon} Region ${index + 1}</span>
-                        <button class="region-item-delete" data-index="${index}">×</button>
-                    `;
-
-                    item.addEventListener('click', (e) => {
-                        if (e.target.classList.contains('region-item-delete')) {
-                            e.stopPropagation();
-                            this.deleteRegion(parseInt(e.target.dataset.index));
-                        } else {
-                            this.selectedRegionIndex = index;
-                            this.updateRegionList();
-                            this.renderVideoFrame();
-                        }
-                    });
-
-                    list.appendChild(item);
-                });
-            }
-
-            deleteRegion(index) {
-                this.regions.splice(index, 1);
-                if (this.selectedRegionIndex >= this.regions.length) {
-                    this.selectedRegionIndex = this.regions.length - 1;
-                }
-                this.updateRegionList();
-                this.renderVideoFrame();
-
-                if (this.regions.length === 0) {
-                    document.getElementById('exportBtn').disabled = true;
-                }
-            }
-
-            deleteSelectedRegion() {
-                if (this.selectedRegionIndex >= 0) {
-                    this.deleteRegion(this.selectedRegionIndex);
-                }
-            }
-
-            onCanvasMouseDown(e) {
-                if (!this.isVideoMode || !this.video.src) return;
-
-                const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
-                const x = (e.clientX - rect.left) * scaleX;
-                const y = (e.clientY - rect.top) * scaleY;
-
-                // Check if clicking on a handle of selected region
-                if (this.selectedRegionIndex >= 0) {
-                    const region = this.regions[this.selectedRegionIndex];
-                    const cx = region.x + region.width/2;
-                    const cy = region.y + region.height/2;
-
-                    // Transform click point
-                    const cos = Math.cos(-region.rotation || 0);
-                    const sin = Math.sin(-region.rotation || 0);
-                    const dx = x - cx;
-                    const dy = y - cy;
-                    const rx = dx * cos - dy * sin;
-                    const ry = dx * sin + dy * cos;
-
-                    // Check rotation handle (top)
-                    const rotHandleY = -region.height/2 - 20;
-                    if (Math.abs(rx) < 15 && Math.abs(ry - rotHandleY) < 15) {
-                        this.isRotating = true;
-                        this.dragStart = { x: e.clientX, y: e.clientY, rotation: region.rotation || 0 };
-                        return;
-                    }
-
-                    // Check resize handle (bottom-right)
-                    if (Math.abs(rx - region.width/2) < 15 && Math.abs(ry - region.height/2) < 15) {
-                        this.isResizing = true;
-                        this.dragStart = { x: e.clientX, y: e.clientY, width: region.width, height: region.height };
-                        return;
-                    }
-
-                    // Check move handle (center)
-                    if (Math.abs(rx) < 15 && Math.abs(ry) < 15) {
-                        this.isDragging = true;
-                        this.dragOffset = { x: x - region.x, y: y - region.y };
-                        document.getElementById('recIndicator').classList.add('active');
-                        return;
-                    }
-                }
-
-                // Check if clicking inside any region
-                for (let i = this.regions.length - 1; i >= 0; i--) {
-                    const region = this.regions[i];
-                    if (this.isPointInRegion(x, y, region)) {
-                        this.selectedRegionIndex = i;
-                        this.isDragging = true;
-                        this.dragOffset = { x: x - region.x, y: y - region.y };
-                        this.updateRegionList();
-                        this.renderVideoFrame();
-                        document.getElementById('recIndicator').classList.add('active');
-                        return;
-                    }
-                }
-
-                // Clicked outside all regions
-                this.selectedRegionIndex = -1;
-                this.updateRegionList();
-                this.renderVideoFrame();
-            }
-
-            isPointInRegion(px, py, region) {
-                const cx = region.x + region.width/2;
-                const cy = region.y + region.height/2;
-                const cos = Math.cos(-region.rotation || 0);
-                const sin = Math.sin(-region.rotation || 0);
-                const dx = px - cx;
-                const dy = py - cy;
-                const rx = dx * cos - dy * sin;
-                const ry = dx * sin + dy * cos;
-
-                if (region.shape === 'rectangle') {
-                    return Math.abs(rx) <= region.width/2 && Math.abs(ry) <= region.height/2;
-                } else if (region.shape === 'ellipse') {
-                    return (rx*rx)/(region.width*region.width/4) + (ry*ry)/(region.height*region.height/4) <= 1;
-                } else if (region.shape === 'diamond') {
-                    return Math.abs(rx)/(region.width/2) + Math.abs(ry)/(region.height/2) <= 1;
-                }
-                return false;
-            }
-
-            onCanvasMouseMove(e) {
-                if (!this.isVideoMode || this.selectedRegionIndex < 0) return;
-
-                const region = this.regions[this.selectedRegionIndex];
-                const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
-
-                if (this.isDragging) {
-                    const x = (e.clientX - rect.left) * scaleX;
-                    const y = (e.clientY - rect.top) * scaleY;
-                    region.x = x - this.dragOffset.x;
-                    region.y = y - this.dragOffset.y;
-                    this.saveRegionPositionForFrame();
-                    this.renderVideoFrame();
-                } else if (this.isResizing) {
-                    const dx = e.clientX - this.dragStart.x;
-                    const dy = e.clientY - this.dragStart.y;
-                    // 1:1 sensitivity - mouse movement directly maps to size change
-                    region.width = Math.max(30, this.dragStart.width + dx * scaleX);
-                    region.height = Math.max(30, this.dragStart.height + dy * scaleY);
-                    this.saveRegionPositionForFrame();
-                    this.renderVideoFrame();
-                } else if (this.isRotating) {
-                    const cx = region.x + region.width/2;
-                    const cy = region.y + region.height/2;
-                    const canvasCx = rect.left + cx / scaleX;
-                    const canvasCy = rect.top + cy / scaleY;
-                    const angle = Math.atan2(e.clientY - canvasCy, e.clientX - canvasCx) + Math.PI/2;
-                    region.rotation = angle;
-                    this.saveRegionPositionForFrame();
-                    this.renderVideoFrame();
-                }
-            }
-
-            onCanvasMouseUp(e) {
-                if (this.isDragging || this.isResizing || this.isRotating) {
-                    document.getElementById('recIndicator').classList.remove('active');
-                }
-                this.isDragging = false;
-                this.isResizing = false;
-                this.isRotating = false;
-            }
-
-            saveRegionPositionForFrame() {
-                const frameNum = this.currentFrameNumber;
-                let positions = this.regionPositions.get(frameNum);
-                if (!positions) {
-                    positions = [];
-                    this.regionPositions.set(frameNum, positions);
-                }
-
-                const region = this.regions[this.selectedRegionIndex];
-                const existingIdx = positions.findIndex(p => p.id === region.id);
-                const posData = {
-                    id: region.id,
-                    x: region.x,
-                    y: region.y,
-                    width: region.width,
-                    height: region.height,
-                    rotation: region.rotation
-                };
-
-                if (existingIdx >= 0) {
-                    positions[existingIdx] = posData;
-                } else {
-                    positions.push(posData);
-                }
-
-                // Also save for all future frames (carry forward)
-                for (let f = frameNum + 1; f <= this.totalFrames; f++) {
-                    let futurePos = this.regionPositions.get(f);
-                    if (!futurePos) {
-                        futurePos = [];
-                        this.regionPositions.set(f, futurePos);
-                    }
-                    const futureIdx = futurePos.findIndex(p => p.id === region.id);
-                    if (futureIdx >= 0) {
-                        break; // Stop at first frame that already has this region's position
-                    }
-                    futurePos.push({...posData});
-                }
-            }
-
-            togglePlayback() {
-                if (this.isPlaying) {
-                    this.stopPlayback();
-                } else {
-                    this.startPlayback();
-                }
-            }
-
-            startPlayback() {
-                if (!this.video.src) return;
-                if (this.regions.length === 0) {
-                    alert('Add a region first to start tracking');
-                    return;
-                }
-
-                this.isPlaying = true;
-                document.getElementById('playBtn').textContent = '⏸ PAUSE';
-                document.getElementById('playBtn').classList.add('active');
-                // Show REC indicator during playback (positions are being recorded)
-                document.getElementById('recIndicator').classList.add('active');
-
-                const frameInterval = 1000 / (this.fps * this.playbackSpeed);
-
-                this.playbackInterval = setInterval(() => {
-                    if (this.video.currentTime >= this.video.duration - 0.1) {
-                        this.stopPlayback();
-                        return;
-                    }
-
-                    this.video.currentTime += 1 / this.fps;
-                }, frameInterval);
-            }
-
-            stopPlayback() {
-                this.isPlaying = false;
-                document.getElementById('playBtn').textContent = '▶ PLAY';
-                document.getElementById('playBtn').classList.remove('active');
-                document.getElementById('recIndicator').classList.remove('active');
-
-                if (this.playbackInterval) {
-                    clearInterval(this.playbackInterval);
-                    this.playbackInterval = null;
-                }
-            }
-
-            stepFrame(delta) {
-                if (!this.video.src) return;
-
-                const newTime = Math.max(0, Math.min(this.video.duration, this.video.currentTime + delta / this.fps));
-                this.video.currentTime = newTime;
-            }
-
-            seekTimeline(e) {
-                if (!this.video.src) return;
-
-                const rect = e.target.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                this.video.currentTime = percent * this.video.duration;
-            }
-
-            formatTime(seconds) {
-                const h = Math.floor(seconds / 3600);
-                const m = Math.floor((seconds % 3600) / 60);
-                const s = Math.floor(seconds % 60);
-                return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-            }
-
-            async exportVideo() {
-                if (this.regions.length === 0) {
-                    alert('Add at least one region');
-                    return;
-                }
-
-                const loadingOverlay = document.getElementById('loading');
-                const loadingText = loadingOverlay.querySelector('.loading-text');
-                loadingOverlay.style.display = 'flex';
-                loadingText.textContent = 'PREPARING EXPORT...';
-
-                try {
-                    // Create canvas for rendering
-                    const renderCanvas = document.createElement('canvas');
-                    renderCanvas.width = this.canvas.width;
-                    renderCanvas.height = this.canvas.height;
-                    const renderCtx = renderCanvas.getContext('2d');
-
-                    // Use MediaRecorder to capture frames
-                    const stream = renderCanvas.captureStream(this.fps);
-                    const mediaRecorder = new MediaRecorder(stream, {
-                        mimeType: 'video/webm;codecs=vp9',
-                        videoBitsPerSecond: 8000000
-                    });
-
-                    const chunks = [];
-                    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-
-                    const recordingDone = new Promise(resolve => {
-                        mediaRecorder.onstop = resolve;
-                    });
-
-                    mediaRecorder.start();
-
-                    // Render each frame
-                    const totalFrames = this.totalFrames;
-                    for (let frame = 0; frame < totalFrames; frame++) {
-                        this.video.currentTime = frame / this.fps;
-                        await new Promise(resolve => {
-                            this.video.onseeked = resolve;
-                        });
-
-                        // Draw video frame
-                        renderCtx.drawImage(this.video, 0, 0, renderCanvas.width, renderCanvas.height);
-
-                        // Apply mosaic to regions
-                        const imageData = renderCtx.getImageData(0, 0, renderCanvas.width, renderCanvas.height);
-                        this.applyMosaicToImageData(imageData, frame);
-                        renderCtx.putImageData(imageData, 0, 0);
-
-                        // Small delay to let MediaRecorder capture frame
-                        await new Promise(r => setTimeout(r, 1000 / this.fps));
-
-                        // Update progress
-                        const progress = Math.round((frame / totalFrames) * 100);
-                        loadingText.textContent = `RENDERING ${progress}%`;
-                    }
-
-                    mediaRecorder.stop();
-                    await recordingDone;
-
-                    loadingText.textContent = 'CONVERTING TO MP4...';
-
-                    // Convert WebM to MP4 using FFmpeg
-                    const webmBlob = new Blob(chunks, { type: 'video/webm' });
-                    const mp4Blob = await this.convertToMp4(webmBlob, loadingText);
-
-                    // Download
-                    const url = URL.createObjectURL(mp4Blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'mosaic_video.mp4';
-                    a.click();
-                    URL.revokeObjectURL(url);
-
-                    loadingOverlay.style.display = 'none';
-
-                } catch (error) {
-                    console.error('Export error:', error);
-                    loadingText.textContent = 'EXPORT FAILED';
-                    setTimeout(() => {
-                        loadingOverlay.style.display = 'none';
-                    }, 2000);
-                }
-            }
-
-            applyMosaicToImageData(imageData, frameNum) {
-                const data = imageData.data;
-                const width = imageData.width;
-                const height = imageData.height;
-
-                for (const region of this.regions) {
-                    // Get position for this frame
-                    let pos = this.getRegionPositionForFrame(region.id, frameNum);
-                    if (!pos) {
-                        pos = { x: region.x, y: region.y, width: region.width, height: region.height, rotation: region.rotation };
-                    }
-
-                    const blockSize = Math.max(1, region.intensity);
-                    const centerX = pos.x + pos.width / 2;
-                    const centerY = pos.y + pos.height / 2;
-                    const cos = Math.cos(-pos.rotation || 0);
-                    const sin = Math.sin(-pos.rotation || 0);
-
-                    for (let py = 0; py < height; py++) {
-                        for (let px = 0; px < width; px++) {
-                            const dx = px - centerX;
-                            const dy = py - centerY;
-                            const rx = dx * cos - dy * sin;
-                            const ry = dx * sin + dy * cos;
-
-                            let inside = false;
-                            if (region.shape === 'rectangle') {
-                                inside = Math.abs(rx) <= pos.width/2 && Math.abs(ry) <= pos.height/2;
-                            } else if (region.shape === 'ellipse') {
-                                inside = (rx*rx)/(pos.width*pos.width/4) + (ry*ry)/(pos.height*pos.height/4) <= 1;
-                            } else if (region.shape === 'diamond') {
-                                inside = Math.abs(rx)/(pos.width/2) + Math.abs(ry)/(pos.height/2) <= 1;
-                            }
-
-                            if (inside) {
-                                const blockX = Math.floor(px / blockSize) * blockSize;
-                                const blockY = Math.floor(py / blockSize) * blockSize;
-
-                                let r = 0, g = 0, b = 0, count = 0;
-                                for (let by = blockY; by < Math.min(blockY + blockSize, height); by++) {
-                                    for (let bx = blockX; bx < Math.min(blockX + blockSize, width); bx++) {
-                                        const idx = (by * width + bx) * 4;
-                                        r += data[idx];
-                                        g += data[idx + 1];
-                                        b += data[idx + 2];
-                                        count++;
-                                    }
-                                }
-
-                                if (count > 0) {
-                                    const idx = (py * width + px) * 4;
-                                    data[idx] = Math.floor(r / count);
-                                    data[idx + 1] = Math.floor(g / count);
-                                    data[idx + 2] = Math.floor(b / count);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            getRegionPositionForFrame(regionId, frameNum) {
-                // Find closest frame with recorded position at or before frameNum
-                for (let f = frameNum; f >= 0; f--) {
-                    const positions = this.regionPositions.get(f);
-                    if (positions) {
-                        const pos = positions.find(p => p.id === regionId);
-                        if (pos) return pos;
-                    }
-                }
-                return null;
-            }
-
-            async convertToMp4(webmBlob, loadingText) {
-                const { createFFmpeg, fetchFile } = FFmpeg;
-                const ffmpeg = createFFmpeg({
-                    log: false,
-                    progress: ({ ratio }) => {
-                        const pct = 50 + Math.round(ratio * 50);
-                        loadingText.textContent = `CONVERTING ${pct}%`;
-                    }
-                });
-
-                await ffmpeg.load();
-                ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
-                await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '22', 'output.mp4');
-                const data = ffmpeg.FS('readFile', 'output.mp4');
-
-                return new Blob([data.buffer], { type: 'video/mp4' });
-            }
-        }
-
-        // Initialize Video Mode Tool
-        const videoMosaicTool = new VideoMosaicTool();
-
-        // ==================== PHOTO MODE CLASS (existing) ====================
         class MosaicTool {
             constructor() {
                 this.canvas = document.getElementById('canvas');
@@ -2401,6 +1703,35 @@
                 this.minZoom = 0.5;
                 this.maxZoom = 4;
 
+                // Video mode properties
+                this.isVideoMode = false;
+                this.video = document.getElementById('videoElement');
+                this.isPlaying = false;
+                this.currentFrameNumber = 0;
+                this.totalFrames = 0;
+                this.fps = 30; // Default, will be detected
+                this.videoDuration = 0;
+                this.playbackSpeed = 0.5;
+
+                // Region tracking system
+                this.regions = []; // Array of region objects
+                this.selectedRegionIndex = -1;
+                this.regionPositions = new Map(); // frameNumber -> [{regionId, x, y, width, height}]
+                this.positionHistory = []; // For undo: [{frameNumber, positions}]
+                this.isDraggingRegion = false;
+                this.dragOffset = { x: 0, y: 0 };
+                this.regionIdCounter = 0;
+                this.regionShape = 'rect'; // 'rect', 'ellipse', 'diamond'
+                this.regionWidth = 500;
+                this.regionHeight = 500;
+                this.regionRotation = 0; // degrees
+                this.isRotatingRegion = false;
+                this.rotateStart = { angle: 0, mouseAngle: 0 };
+                this.isDraggingTimeline = false;
+
+                // Animation
+                this.animationFrameId = null
+
                 this.presetValues = {
                     1: 1,   // MIN - ほぼ無修正
                     2: 5,   // WEAK
@@ -2413,9 +1744,409 @@
                 this.initializeKeyboardShortcuts();
                 this.initializeDragDrop();
                 this.initializeThemeToggle();
+                this.initializeModeToggle();
+                this.initializeVideoControls();
                 this.updateCursorSize();
                 this.updateButtonStates();
                 this.updateIntensityDisplay();
+            }
+
+            initializeModeToggle() {
+                const toggle = document.getElementById('modeToggle');
+                const photoIcon = document.getElementById('photoIcon');
+                const videoIcon = document.getElementById('videoIcon');
+
+                toggle.addEventListener('click', () => {
+                    this.isVideoMode = !this.isVideoMode;
+                    toggle.classList.toggle('video', this.isVideoMode);
+                    photoIcon.classList.toggle('active', !this.isVideoMode);
+                    videoIcon.classList.toggle('active', this.isVideoMode);
+                    document.body.classList.toggle('video-mode', this.isVideoMode);
+
+                    // Update drop hint text
+                    const dropHint = document.getElementById('dropHint');
+                    if (this.isVideoMode) {
+                        dropHint.querySelector('[data-i18n="dropHint"]').setAttribute('data-i18n', 'dropVideo');
+                        dropHint.querySelector('[data-i18n="dropHintSub"], [data-i18n="dropVideoSub"]').setAttribute('data-i18n', 'dropVideoSub');
+                    } else {
+                        dropHint.querySelector('[data-i18n="dropVideo"]')?.setAttribute('data-i18n', 'dropHint');
+                        dropHint.querySelector('[data-i18n="dropVideoSub"]')?.setAttribute('data-i18n', 'dropHintSub');
+                    }
+                    this.applyTranslations(this.currentLang);
+
+                    // Reset state when switching modes
+                    this.resetForModeSwitch();
+                });
+            }
+
+            resetForModeSwitch() {
+                // Hide canvas and show drop hint
+                this.canvas.style.display = 'none';
+                document.getElementById('dropHint').classList.remove('hidden');
+                document.getElementById('indicator').textContent = '';
+
+                if (this.isVideoMode) {
+                    // Reset video state
+                    this.video.src = '';
+                    this.frameEdits.clear();
+                    this.originalFrames.clear();
+                    this.currentFrameNumber = 0;
+                    this.totalFrames = 0;
+                    document.getElementById('videoName').textContent = '';
+                    document.getElementById('currentFrame').textContent = '0';
+                    document.getElementById('totalFrames').textContent = '0';
+                    document.getElementById('currentTime').textContent = '00:00:00';
+                    document.getElementById('totalTime').textContent = '00:00:00';
+                } else {
+                    // Reset image state
+                    this.images = [];
+                    this.currentIndex = 0;
+                    this.savedImages.clear();
+                    document.getElementById('fileCount').textContent = '';
+                }
+
+                this.history = [];
+                this.historyStep = -1;
+                this.updateButtonStates();
+            }
+
+            initializeVideoControls() {
+                // Video input
+                document.getElementById('videoInput').addEventListener('change', (e) => this.loadVideo(e));
+                document.getElementById('videoInputArea').addEventListener('click', (e) => {
+                    // Only trigger if click is directly on videoInputArea or its children
+                    if (e.target.closest('#videoInputArea')) {
+                        document.getElementById('videoInput').click();
+                    }
+                });
+
+                // Playback controls
+                document.getElementById('playPauseBtn').addEventListener('click', () => this.togglePlayback());
+
+                // Speed control
+                document.querySelectorAll('.speed-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.playbackSpeed = parseFloat(btn.dataset.speed);
+                        this.video.playbackRate = this.playbackSpeed;
+                    });
+                });
+
+                // Frame navigation
+                document.getElementById('frameBackBtn').addEventListener('click', () => this.seekFrames(-1));
+                document.getElementById('frameForwardBtn').addEventListener('click', () => this.seekFrames(1));
+
+                // Undo region position
+                document.getElementById('undoRegionBtn').addEventListener('click', () => this.undoRegionPosition());
+
+                // Video zoom
+                document.getElementById('zoomInBtnVideo').addEventListener('click', () => {
+                    this.zoomIn();
+                    document.getElementById('zoomLevelVideo').textContent = Math.round(this.zoomLevel * 100) + '%';
+                    this.updateRegionOverlayPosition();
+                });
+                document.getElementById('zoomOutBtnVideo').addEventListener('click', () => {
+                    this.zoomOut();
+                    document.getElementById('zoomLevelVideo').textContent = Math.round(this.zoomLevel * 100) + '%';
+                    this.updateRegionOverlayPosition();
+                });
+
+                // Timeline drag
+                const timeline = document.getElementById('timeline');
+                timeline.addEventListener('mousedown', (e) => this.startTimelineDrag(e));
+                document.addEventListener('mousemove', (e) => this.dragTimeline(e));
+                document.addEventListener('mouseup', () => this.stopTimelineDrag());
+
+                // Video events
+                this.video.addEventListener('loadedmetadata', () => this.onVideoLoaded());
+                this.video.addEventListener('ended', () => this.onVideoEnded());
+
+                // Export button
+                document.getElementById('exportVideoBtn').addEventListener('click', () => this.exportVideo());
+
+                // Region settings
+                document.querySelectorAll('.shape-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.regionShape = btn.dataset.shape;
+                        this.updateRegionOverlayShape();
+                    });
+                });
+
+                document.getElementById('addRegionBtn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.addRegion();
+                });
+
+                // Prevent all clicks in region-settings from bubbling up
+                document.getElementById('regionSettings').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+
+                // Region overlay drag
+                this.initializeRegionDrag();
+            }
+
+            initializeRegionDrag() {
+                const overlay = document.getElementById('regionOverlay');
+                const canvasWrapper = document.getElementById('dropZone');
+
+                overlay.addEventListener('mousedown', (e) => {
+                    e.stopPropagation(); // Prevent triggering file input
+                    if (e.target.classList.contains('resize-handle')) {
+                        this.startResizing(e);
+                    } else if (e.target.classList.contains('rotate-handle')) {
+                        this.startRotating(e);
+                    } else if (e.target.classList.contains('move-handle')) {
+                        // Move handle - start dragging from center
+                        this.startDraggingRegion(e, true);
+                    } else {
+                        this.startDraggingRegion(e);
+                    }
+                });
+
+                // Prevent clicks on region overlay from triggering file input
+                overlay.addEventListener('click', (e) => e.stopPropagation());
+
+                document.addEventListener('mousemove', (e) => {
+                    if (this.isDraggingRegion) {
+                        this.dragRegion(e);
+                    } else if (this.isResizingRegion) {
+                        this.resizeRegion(e);
+                    } else if (this.isRotatingRegion) {
+                        this.rotateRegion(e);
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (this.isDraggingRegion || this.isResizingRegion || this.isRotatingRegion) {
+                        this.stopDraggingRegion();
+                    }
+                });
+            }
+
+            startDraggingRegion(e, fromCenter = false) {
+                if (this.selectedRegionIndex < 0) return;
+                e.preventDefault();
+                this.isDraggingRegion = true;
+                const overlay = document.getElementById('regionOverlay');
+                const rect = overlay.getBoundingClientRect();
+
+                if (fromCenter) {
+                    // Dragging from move handle - offset from center
+                    this.dragOffset = {
+                        x: rect.width / 2,
+                        y: rect.height / 2
+                    };
+                } else {
+                    // Dragging from click position
+                    this.dragOffset = {
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    };
+                }
+
+                // Show recording indicator when playing
+                if (this.isVideoMode && this.isPlaying) {
+                    document.getElementById('recordingIndicator').classList.add('active');
+                }
+            }
+
+            startResizing(e) {
+                if (this.selectedRegionIndex < 0) return;
+                e.preventDefault();
+                e.stopPropagation();
+                this.isResizingRegion = true;
+
+                // Show recording indicator when playing
+                if (this.isVideoMode && this.isPlaying) {
+                    document.getElementById('recordingIndicator').classList.add('active');
+                }
+                this.resizeStart = {
+                    x: e.clientX,
+                    y: e.clientY,
+                    width: this.regions[this.selectedRegionIndex].width,
+                    height: this.regions[this.selectedRegionIndex].height
+                };
+            }
+
+            dragRegion(e) {
+                const canvasWrapper = document.getElementById('dropZone');
+                const wrapperRect = canvasWrapper.getBoundingClientRect();
+                const overlay = document.getElementById('regionOverlay');
+
+                let newX = e.clientX - wrapperRect.left - this.dragOffset.x;
+                let newY = e.clientY - wrapperRect.top - this.dragOffset.y;
+
+                // Constrain to canvas area
+                const canvasRect = this.canvas.getBoundingClientRect();
+                const canvasLeft = canvasRect.left - wrapperRect.left;
+                const canvasTop = canvasRect.top - wrapperRect.top;
+
+                newX = Math.max(canvasLeft, Math.min(canvasLeft + canvasRect.width - overlay.offsetWidth, newX));
+                newY = Math.max(canvasTop, Math.min(canvasTop + canvasRect.height - overlay.offsetHeight, newY));
+
+                overlay.style.left = newX + 'px';
+                overlay.style.top = newY + 'px';
+
+                // Update region position in canvas coordinates
+                this.updateRegionCanvasPosition();
+
+                // 動画モード時：位置のみ保存（描画は操作終了時）
+                if (this.isVideoMode && this.video.src) {
+                    this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
+                    this.saveRegionPositionForFrameImmediate();
+                }
+            }
+
+            // 即座に保存（履歴なし版 - ドラッグ中の連続保存用）
+            saveRegionPositionForFrameImmediate() {
+                const frameNum = this.currentFrameNumber;
+                const positions = this.regions.map(r => ({
+                    id: r.id,
+                    x: r.x,
+                    y: r.y,
+                    width: r.width,
+                    height: r.height,
+                    shape: r.shape,
+                    type: r.type,
+                    intensity: r.intensity,
+                    rotation: r.rotation || 0
+                }));
+                this.regionPositions.set(frameNum, positions);
+            }
+
+            resizeRegion(e) {
+                const dx = e.clientX - this.resizeStart.x;
+                const dy = e.clientY - this.resizeStart.y;
+
+                // Scale mouse movement to canvas coordinates for 1:1 feel
+                const canvasRect = this.canvas.getBoundingClientRect();
+                const scaleX = this.canvas.width / canvasRect.width;
+                const scaleY = this.canvas.height / canvasRect.height;
+
+                const region = this.regions[this.selectedRegionIndex];
+                region.width = Math.max(20, this.resizeStart.width + dx * scaleX);
+                region.height = Math.max(20, this.resizeStart.height + dy * scaleY);
+
+                this.updateRegionOverlaySize();
+                this.updateRegionCanvasPosition();
+
+                // 動画モード時：位置のみ保存（描画は操作終了時）
+                if (this.isVideoMode && this.video.src) {
+                    this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
+                    this.saveRegionPositionForFrameImmediate();
+                }
+            }
+
+            startRotating(e) {
+                if (this.selectedRegionIndex < 0) return;
+                e.preventDefault();
+                e.stopPropagation();
+                this.isRotatingRegion = true;
+
+                const region = this.regions[this.selectedRegionIndex];
+                const overlay = document.getElementById('regionOverlay');
+                const rect = overlay.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                // Calculate initial mouse angle
+                const mouseAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+
+                this.rotateStart = {
+                    angle: region.rotation || 0,
+                    mouseAngle: mouseAngle
+                };
+
+                // Show recording indicator when playing
+                if (this.isVideoMode && this.isPlaying) {
+                    document.getElementById('recordingIndicator').classList.add('active');
+                }
+            }
+
+            rotateRegion(e) {
+                if (!this.isRotatingRegion || this.selectedRegionIndex < 0) return;
+
+                const region = this.regions[this.selectedRegionIndex];
+                const overlay = document.getElementById('regionOverlay');
+                const rect = overlay.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                // Calculate current mouse angle
+                const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+                const deltaAngle = currentAngle - this.rotateStart.mouseAngle;
+
+                // Update region rotation
+                region.rotation = this.rotateStart.angle + deltaAngle;
+
+                // Update overlay display
+                this.updateRegionOverlayRotation();
+
+                // 動画モード時：位置のみ保存（描画は操作終了時）
+                if (this.isVideoMode && this.video.src) {
+                    this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
+                    this.saveRegionPositionForFrameImmediate();
+                }
+            }
+
+            updateRegionOverlayRotation() {
+                if (this.selectedRegionIndex < 0) return;
+
+                const region = this.regions[this.selectedRegionIndex];
+                const overlay = document.getElementById('regionOverlay');
+
+                // Apply rotation transform (diamond already has 45deg, so add to it)
+                let baseRotation = region.shape === 'diamond' ? 45 : 0;
+                overlay.style.transform = `rotate(${baseRotation + (region.rotation || 0)}deg)`;
+            }
+
+            stopDraggingRegion() {
+                const wasOperating = this.isDraggingRegion || this.isResizingRegion || this.isRotatingRegion;
+
+                if (wasOperating) {
+                    // Save position for current frame
+                    this.saveRegionPositionForFrame();
+                }
+                this.isDraggingRegion = false;
+                this.isResizingRegion = false;
+                this.isRotatingRegion = false;
+
+                // Hide recording indicator
+                document.getElementById('recordingIndicator').classList.remove('active');
+
+                // Render video frame after operation completes (not during)
+                if (wasOperating && this.isVideoMode && this.video.src) {
+                    this.renderVideoFrame();
+                }
+            }
+
+            updateRegionCanvasPosition() {
+                if (this.selectedRegionIndex < 0) return;
+
+                const overlay = document.getElementById('regionOverlay');
+                const canvasRect = this.canvas.getBoundingClientRect();
+                const wrapperRect = document.getElementById('dropZone').getBoundingClientRect();
+
+                const overlayLeft = parseFloat(overlay.style.left) || 0;
+                const overlayTop = parseFloat(overlay.style.top) || 0;
+
+                const canvasLeft = canvasRect.left - wrapperRect.left;
+                const canvasTop = canvasRect.top - wrapperRect.top;
+
+                // Convert screen position to canvas coordinates
+                const scaleX = this.canvas.width / canvasRect.width;
+                const scaleY = this.canvas.height / canvasRect.height;
+
+                const region = this.regions[this.selectedRegionIndex];
+                region.x = (overlayLeft - canvasLeft) * scaleX;
+                region.y = (overlayTop - canvasTop) * scaleY;
+                region.canvasWidth = overlay.offsetWidth * scaleX;
+                region.canvasHeight = overlay.offsetHeight * scaleY;
             }
 
             initializeThemeToggle() {
@@ -2489,7 +2220,26 @@
                         format: 'Format',
                         outputSize: 'Size',
                         sizeOriginal: 'Original',
-                        sizeCustom: 'Custom'
+                        sizeCustom: 'Custom',
+                        selectVideo: 'SELECT VIDEO',
+                        frame: 'Frame',
+                        prevFrame: '-10F',
+                        backFrame: '-1F',
+                        forwardFrame: '+1F',
+                        nextFrame: '+10F',
+                        exportVideo: 'EXPORT VIDEO',
+                        dropVideo: 'DROP VIDEO HERE',
+                        dropVideoSub: 'or click to select video',
+                        videoLoaded: 'Video loaded',
+                        exporting: 'Exporting video...',
+                        exportComplete: 'Export complete',
+                        regionSettings: 'Region Settings',
+                        regionSize: 'SIZE',
+                        regionWidth: 'WIDTH',
+                        regionHeight: 'HEIGHT',
+                        addRegion: '+ ADD REGION',
+                        undoPosition: 'UNDO POS',
+                        mosaicSettings: 'Mosaic Settings'
                     },
                     ja: {
                         dropHint: '画像をドロップ',
@@ -2534,7 +2284,26 @@
                         format: '形式',
                         outputSize: 'サイズ',
                         sizeOriginal: '元のサイズ',
-                        sizeCustom: 'カスタム'
+                        sizeCustom: 'カスタム',
+                        selectVideo: '動画を選択',
+                        frame: 'フレーム',
+                        prevFrame: '-10F',
+                        backFrame: '-1F',
+                        forwardFrame: '+1F',
+                        nextFrame: '+10F',
+                        exportVideo: '動画を書き出し',
+                        dropVideo: '動画をドロップ',
+                        dropVideoSub: 'またはクリックして選択',
+                        videoLoaded: '動画を読み込みました',
+                        exporting: '動画を書き出し中...',
+                        exportComplete: '書き出し完了',
+                        regionSettings: '領域設定',
+                        regionSize: 'サイズ',
+                        regionWidth: '幅',
+                        regionHeight: '高さ',
+                        addRegion: '+ 領域を追加',
+                        undoPosition: '位置を戻す',
+                        mosaicSettings: 'モザイク設定'
                     }
                 };
 
@@ -2631,10 +2400,22 @@
                     this.mosaicSize = parseInt(e.target.value);
                     this.updateIntensityDisplay();
                     this.updatePresetButtons();
+                    // Update selected region in video mode
+                    if (this.isVideoMode && this.selectedRegionIndex >= 0) {
+                        this.regions[this.selectedRegionIndex].intensity = this.mosaicSize;
+                        this.showRegionOverlay();
+                        this.renderVideoFrame();
+                    }
                 });
 
                 document.getElementById('mosaicType').addEventListener('change', (e) => {
                     this.mosaicType = e.target.value;
+                    // Update selected region in video mode
+                    if (this.isVideoMode && this.selectedRegionIndex >= 0) {
+                        this.regions[this.selectedRegionIndex].type = this.mosaicType;
+                        this.showRegionOverlay();
+                        this.renderVideoFrame();
+                    }
                 });
 
                 // Canvas events
@@ -2643,6 +2424,8 @@
                 this.canvas.addEventListener('mouseup', () => this.stopDrawing());
                 this.canvas.addEventListener('mouseleave', () => this.hideCursor());
                 this.canvas.addEventListener('mouseenter', () => this.showCursor());
+                // Prevent clicks on canvas from triggering file input
+                this.canvas.addEventListener('click', (e) => e.stopPropagation());
 
                 // Touch events
                 this.canvas.addEventListener('touchstart', (e) => {
@@ -2678,15 +2461,15 @@
                 document.getElementById('zoomOutBtn').addEventListener('click', () => this.zoomOut());
                 document.getElementById('zoomResetBtn').addEventListener('click', () => this.zoomReset());
 
-                // Mouse wheel zoom
-                this.canvas.addEventListener('wheel', (e) => {
-                    e.preventDefault();
-                    if (e.deltaY < 0) {
-                        this.zoomIn();
-                    } else {
-                        this.zoomOut();
-                    }
-                }, { passive: false });
+                // Mouse wheel zoom - disabled for video mode stability
+                // this.canvas.addEventListener('wheel', (e) => {
+                //     e.preventDefault();
+                //     if (e.deltaY < 0) {
+                //         this.zoomIn();
+                //     } else {
+                //         this.zoomOut();
+                //     }
+                // }, { passive: false });
             }
 
             initializeKeyboardShortcuts() {
@@ -2694,6 +2477,60 @@
                     // Don't trigger shortcuts when typing in inputs
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
+                    // Video mode shortcuts
+                    if (this.isVideoMode) {
+                        // Space key - use e.code for reliability
+                        if (e.code === 'Space' || e.key === ' ') {
+                            e.preventDefault();
+                            this.togglePlayback();
+                            return;
+                        }
+
+                        switch(e.key.toLowerCase()) {
+                            case 'arrowleft':
+                                e.preventDefault();
+                                this.seekFrames(-1);
+                                break;
+                            case 'arrowright':
+                                e.preventDefault();
+                                this.seekFrames(1);
+                                break;
+                            case 'z':
+                                e.preventDefault();
+                                this.undoRegionPosition();
+                                break;
+                            case '1':
+                            case '2':
+                            case '3':
+                            case '4':
+                            case '5':
+                                e.preventDefault();
+                                this.setIntensity(this.presetValues[parseInt(e.key)]);
+                                if (this.selectedRegionIndex >= 0) {
+                                    this.regions[this.selectedRegionIndex].intensity = this.mosaicSize;
+                                    this.showRegionOverlay();
+                                    this.renderVideoFrame();
+                                }
+                                break;
+                            case 'q':
+                                e.preventDefault();
+                                this.zoomOut();
+                                document.getElementById('zoomLevelVideo').textContent = Math.round(this.zoomLevel * 100) + '%';
+                                this.updateRegionOverlayPosition();
+                                this.updateRegionOverlaySize();
+                                break;
+                            case 'e':
+                                e.preventDefault();
+                                this.zoomIn();
+                                document.getElementById('zoomLevelVideo').textContent = Math.round(this.zoomLevel * 100) + '%';
+                                this.updateRegionOverlayPosition();
+                                this.updateRegionOverlaySize();
+                                break;
+                        }
+                        return;
+                    }
+
+                    // Photo mode shortcuts
                     switch(e.key.toLowerCase()) {
                         case ' ':
                             e.preventDefault();
@@ -2755,6 +2592,7 @@
                 });
             }
 
+
             initializeDragDrop() {
                 const dropZone = document.getElementById('dropZone');
 
@@ -2777,23 +2615,48 @@
                     dropZone.classList.remove('dragover');
                     const files = e.dataTransfer.files;
                     if (files.length > 0) {
-                        this.loadFilesArray(Array.from(files));
+                        if (this.isVideoMode) {
+                            // Handle video file drop
+                            const videoFile = Array.from(files).find(f => f.type.startsWith('video/'));
+                            if (videoFile) {
+                                this.loadVideoFile(videoFile);
+                            } else {
+                                this.showStatus('Please drop a video file', 'error');
+                            }
+                        } else {
+                            this.loadFilesArray(Array.from(files));
+                        }
                     }
                 });
 
-                // Click on drop zone to select files
+                // Click on drop zone to select files - only when no content is loaded
                 dropZone.addEventListener('click', (e) => {
-                    // Don't trigger file dialog if in video mode with video loaded
-                    if (document.body.classList.contains('video-mode')) {
-                        const video = document.getElementById('videoElement');
-                        if (video && video.src) {
-                            return; // Video is loaded, don't open file dialog
+                    // Only trigger when clicking on empty drop zone (no content loaded yet)
+                    const videoLoaded = this.video.src && this.video.readyState > 0;
+                    const hasContent = this.isVideoMode ? videoLoaded : this.images.length > 0;
+                    if (hasContent) return; // Content already loaded, ignore clicks
+
+                    // Only respond to clicks on drop zone or drop hint
+                    const isDropHint = e.target.id === 'dropHint' || e.target.closest('#dropHint');
+                    if (e.target === dropZone || isDropHint) {
+                        if (this.isVideoMode) {
+                            document.getElementById('videoInput').click();
+                        } else {
+                            document.getElementById('fileInput').click();
                         }
                     }
-                    if (e.target === dropZone || e.target.id === 'dropHint' || e.target.closest('.drop-hint')) {
-                        document.getElementById('fileInput').click();
-                    }
                 });
+            }
+
+            loadVideoFile(file) {
+                document.getElementById('loading').style.display = 'flex';
+                document.querySelector('.loading-text').textContent = 'LOADING VIDEO';
+
+                const url = URL.createObjectURL(file);
+                this.video.src = url;
+                this.videoFileName = file.name;
+
+                document.getElementById('videoName').textContent = file.name;
             }
 
             setIntensity(value) {
@@ -2887,7 +2750,7 @@
             }
 
             showCursor() {
-                if (this.images.length > 0) {
+                if (this.images.length > 0 || (this.isVideoMode && this.video.src)) {
                     this.cursorPreview.style.display = 'block';
                 }
             }
@@ -3015,13 +2878,16 @@
             }
 
             startDrawing(e) {
-                if (this.images.length === 0) return;
+                if (this.images.length === 0 && !(this.isVideoMode && this.video.src)) return;
+                // Disable brush drawing in video mode - use regions only
+                if (this.isVideoMode) return;
                 this.isDrawing = true;
                 this.draw(e);
             }
 
             draw(e) {
-                if (!this.isDrawing || this.images.length === 0) return;
+                if (!this.isDrawing) return;
+                if (this.images.length === 0 && !(this.isVideoMode && this.video.src)) return;
 
                 const rect = this.canvas.getBoundingClientRect();
                 const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
@@ -3034,6 +2900,11 @@
                 if (this.isDrawing) {
                     this.isDrawing = false;
                     this.saveHistory();
+
+                    // In video mode, automatically save frame edit
+                    if (this.isVideoMode && this.video.src) {
+                        this.saveCurrentFrameEdit();
+                    }
                 }
             }
 
@@ -3430,6 +3301,827 @@
                 setTimeout(() => {
                     statusBar.style.display = 'none';
                 }, 2000);
+            }
+
+            // ==================== VIDEO MODE FUNCTIONS ====================
+
+            // Region management
+            addRegion() {
+                if (!this.video.src) {
+                    this.showStatus('Load a video first', 'error');
+                    return;
+                }
+
+                const region = {
+                    id: this.regionIdCounter++,
+                    shape: this.regionShape,
+                    type: this.mosaicType,
+                    intensity: this.mosaicSize,
+                    x: this.canvas.width / 2 - this.regionWidth / 2,
+                    y: this.canvas.height / 2 - this.regionHeight / 2,
+                    width: this.regionWidth,
+                    height: this.regionHeight,
+                    canvasWidth: this.regionWidth,
+                    canvasHeight: this.regionHeight,
+                    rotation: this.regionRotation
+                };
+
+                this.regions.push(region);
+                this.selectedRegionIndex = this.regions.length - 1;
+
+                this.updateRegionList();
+                this.showRegionOverlay();
+                this.saveRegionPositionForFrame();
+
+                this.showStatus('Region added', 'success');
+            }
+
+            updateRegionList() {
+                const list = document.getElementById('regionList');
+                list.innerHTML = '';
+
+                const shapeIcons = { rect: '▢', ellipse: '⬭', diamond: '◇' };
+                this.regions.forEach((region, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'region-item' + (index === this.selectedRegionIndex ? ' selected' : '');
+                    const icon = shapeIcons[region.shape] || '▢';
+                    item.innerHTML = `
+                        <span class="region-item-name">${icon} Region ${region.id + 1}</span>
+                        <button class="region-item-delete" data-index="${index}">×</button>
+                    `;
+                    item.addEventListener('click', (e) => {
+                        if (!e.target.classList.contains('region-item-delete')) {
+                            this.selectRegion(index);
+                        }
+                    });
+                    item.querySelector('.region-item-delete').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.deleteRegion(index);
+                    });
+                    list.appendChild(item);
+                });
+            }
+
+            selectRegion(index) {
+                this.selectedRegionIndex = index;
+                this.updateRegionList();
+
+                if (index >= 0 && index < this.regions.length) {
+                    const region = this.regions[index];
+                    this.regionShape = region.shape;
+                    this.mosaicType = region.type;
+                    this.mosaicSize = region.intensity;
+                    this.regionWidth = region.width;
+                    this.regionHeight = region.height;
+
+                    // Update UI
+                    document.querySelectorAll('.shape-btn').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.shape === region.shape);
+                    });
+                    document.getElementById('mosaicSize').value = region.intensity;
+                    document.getElementById('mosaicSizeValue').textContent = region.intensity;
+                    document.getElementById('mosaicType').value = region.type;
+
+                    this.showRegionOverlay();
+                }
+            }
+
+            deleteRegion(index) {
+                this.regions.splice(index, 1);
+                if (this.selectedRegionIndex >= this.regions.length) {
+                    this.selectedRegionIndex = this.regions.length - 1;
+                }
+                this.updateRegionList();
+
+                if (this.selectedRegionIndex >= 0) {
+                    this.showRegionOverlay();
+                } else {
+                    this.hideRegionOverlay();
+                }
+            }
+
+            showRegionOverlay() {
+                if (this.selectedRegionIndex < 0) return;
+
+                const region = this.regions[this.selectedRegionIndex];
+                const overlay = document.getElementById('regionOverlay');
+
+                overlay.classList.add('active');
+                // Remove all shape classes first
+                overlay.classList.remove('ellipse', 'diamond');
+                // Add appropriate shape class
+                if (region.shape === 'ellipse') {
+                    overlay.classList.add('ellipse');
+                } else if (region.shape === 'diamond') {
+                    overlay.classList.add('diamond');
+                }
+
+                // Update label
+                const typeLabel = region.type === 'pixelate' ? 'PIXEL' : region.type === 'blur' ? 'BLUR' : 'MOSAIC';
+                document.getElementById('regionLabel').textContent = `${typeLabel} ${region.intensity}`;
+
+                this.updateRegionOverlayPosition();
+                this.updateRegionOverlaySize();
+                this.updateRegionOverlayRotation();
+            }
+
+            hideRegionOverlay() {
+                document.getElementById('regionOverlay').classList.remove('active');
+            }
+
+            updateRegionOverlayPosition() {
+                if (this.selectedRegionIndex < 0) return;
+
+                const region = this.regions[this.selectedRegionIndex];
+                const overlay = document.getElementById('regionOverlay');
+                const canvasRect = this.canvas.getBoundingClientRect();
+                const wrapperRect = document.getElementById('dropZone').getBoundingClientRect();
+
+                const canvasLeft = canvasRect.left - wrapperRect.left;
+                const canvasTop = canvasRect.top - wrapperRect.top;
+
+                // Convert canvas coordinates to screen position
+                const scaleX = canvasRect.width / this.canvas.width;
+                const scaleY = canvasRect.height / this.canvas.height;
+
+                overlay.style.left = (canvasLeft + region.x * scaleX) + 'px';
+                overlay.style.top = (canvasTop + region.y * scaleY) + 'px';
+            }
+
+            updateRegionOverlaySize() {
+                if (this.selectedRegionIndex < 0) return;
+
+                const region = this.regions[this.selectedRegionIndex];
+                const overlay = document.getElementById('regionOverlay');
+                const canvasRect = this.canvas.getBoundingClientRect();
+
+                const scaleX = canvasRect.width / this.canvas.width;
+                const scaleY = canvasRect.height / this.canvas.height;
+
+                overlay.style.width = (region.width * scaleX) + 'px';
+                overlay.style.height = (region.height * scaleY) + 'px';
+            }
+
+            updateRegionOverlayShape() {
+                const overlay = document.getElementById('regionOverlay');
+                // Remove all shape classes
+                overlay.classList.remove('ellipse', 'diamond');
+                // Add the appropriate class
+                if (this.regionShape === 'ellipse') {
+                    overlay.classList.add('ellipse');
+                } else if (this.regionShape === 'diamond') {
+                    overlay.classList.add('diamond');
+                }
+
+                if (this.selectedRegionIndex >= 0) {
+                    this.regions[this.selectedRegionIndex].shape = this.regionShape;
+                    if (this.isVideoMode && this.video.src) {
+                        this.renderVideoFrame();
+                    }
+                }
+            }
+
+            saveRegionPositionForFrame() {
+                const frameNum = Math.floor(this.video.currentTime * this.fps);
+
+                // Save to history for undo
+                const prevPositions = this.regionPositions.get(frameNum);
+                if (prevPositions) {
+                    this.positionHistory.push({
+                        frameNumber: frameNum,
+                        positions: JSON.parse(JSON.stringify(prevPositions))
+                    });
+                    // Limit history
+                    if (this.positionHistory.length > 100) {
+                        this.positionHistory.shift();
+                    }
+                }
+
+                // Save current positions
+                const positions = this.regions.map(r => ({
+                    id: r.id,
+                    x: r.x,
+                    y: r.y,
+                    width: r.width,
+                    height: r.height,
+                    shape: r.shape,
+                    type: r.type,
+                    intensity: r.intensity,
+                    rotation: r.rotation || 0
+                }));
+                this.regionPositions.set(frameNum, positions);
+            }
+
+            undoRegionPosition() {
+                if (this.positionHistory.length === 0) {
+                    this.showStatus('Nothing to undo', 'error');
+                    return;
+                }
+
+                const lastState = this.positionHistory.pop();
+                this.regionPositions.set(lastState.frameNumber, lastState.positions);
+
+                // If current frame matches, restore positions
+                const currentFrame = Math.floor(this.video.currentTime * this.fps);
+                if (currentFrame === lastState.frameNumber) {
+                    this.restoreRegionPositions(lastState.positions);
+                }
+
+                this.showStatus('Position undone', 'success');
+            }
+
+            restoreRegionPositions(positions) {
+                positions.forEach(pos => {
+                    const region = this.regions.find(r => r.id === pos.id);
+                    if (region) {
+                        region.x = pos.x;
+                        region.y = pos.y;
+                        region.width = pos.width;
+                        region.height = pos.height;
+                    }
+                });
+                this.updateRegionOverlayPosition();
+                this.updateRegionOverlaySize();
+            }
+
+            async loadVideo(event) {
+                const file = event.target.files[0];
+                if (!file || !file.type.startsWith('video/')) {
+                    this.showStatus('Please select a video file', 'error');
+                    return;
+                }
+
+                document.getElementById('loading').style.display = 'flex';
+                document.querySelector('.loading-text').textContent = 'LOADING VIDEO';
+
+                const url = URL.createObjectURL(file);
+                this.video.src = url;
+                this.videoFileName = file.name;
+
+                document.getElementById('videoName').textContent = file.name;
+            }
+
+            onVideoLoaded() {
+                document.getElementById('loading').style.display = 'none';
+
+                this.videoDuration = this.video.duration;
+                this.originalWidth = this.video.videoWidth;
+                this.originalHeight = this.video.videoHeight;
+
+                // Estimate FPS (default to 30 if can't detect)
+                this.fps = 30;
+                this.totalFrames = Math.floor(this.videoDuration * this.fps);
+
+                // Setup canvas
+                this.canvas.width = this.originalWidth;
+                this.canvas.height = this.originalHeight;
+
+                // Calculate base scale to fit in view
+                const maxDisplayWidth = 900;
+                const maxDisplayHeight = 500;
+                const scaleX = maxDisplayWidth / this.originalWidth;
+                const scaleY = maxDisplayHeight / this.originalHeight;
+                this.baseScale = Math.min(scaleX, scaleY, 1);
+
+                // Show canvas
+                this.canvas.style.display = 'block';
+                document.getElementById('dropHint').classList.add('hidden');
+
+                // Update UI
+                document.getElementById('totalFrames').textContent = this.totalFrames;
+                document.getElementById('totalTime').textContent = this.formatTime(this.videoDuration);
+                document.getElementById('currentSizeDisplay').textContent =
+                    `${this.originalWidth} × ${this.originalHeight}`;
+
+                // Set initial playback speed
+                this.video.playbackRate = this.playbackSpeed;
+
+                // Display first frame
+                this.video.currentTime = 0;
+                this.renderVideoFrame();
+
+                // Reset zoom
+                this.setZoom(1);
+                document.getElementById('zoomLevelVideo').textContent = '100%';
+
+                // Clear regions
+                this.regions = [];
+                this.regionPositions.clear();
+                this.positionHistory = [];
+                this.selectedRegionIndex = -1;
+                this.updateRegionList();
+                this.hideRegionOverlay();
+
+                this.showStatus(this.t('videoLoaded'), 'success');
+            }
+
+            renderVideoFrame() {
+                if (!this.video.src) return;
+
+                this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
+
+                // Draw video frame
+                this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
+
+                // Apply mosaic for all regions
+                this.applyRegionMosaics();
+
+                // Update timeline
+                const progress = (this.video.currentTime / this.videoDuration) * 100;
+                document.getElementById('timelineProgress').style.width = progress + '%';
+                document.getElementById('timelineHandle').style.left = progress + '%';
+                document.getElementById('currentTime').textContent = this.formatTime(this.video.currentTime);
+                document.getElementById('currentFrame').textContent = this.currentFrameNumber;
+
+                // Update indicator
+                const indicator = document.getElementById('indicator');
+                const hasRegions = this.regions.length > 0;
+                indicator.textContent = `Frame ${this.currentFrameNumber + 1} / ${this.totalFrames}`;
+                indicator.className = hasRegions ? 'indicator saved' : 'indicator';
+
+                // Load saved positions for this frame if they exist
+                this.loadRegionPositionsForFrame();
+            }
+
+            loadRegionPositionsForFrame() {
+                const frameNum = this.currentFrameNumber;
+                const positions = this.regionPositions.get(frameNum);
+
+                if (positions) {
+                    // Restore saved positions
+                    positions.forEach(pos => {
+                        const region = this.regions.find(r => r.id === pos.id);
+                        if (region) {
+                            region.x = pos.x;
+                            region.y = pos.y;
+                            region.width = pos.width;
+                            region.height = pos.height;
+                            region.rotation = pos.rotation || 0;
+                        }
+                    });
+                } else if (frameNum > 0) {
+                    // Interpolate from previous frame
+                    const prevFrame = this.findPreviousKeyframe(frameNum);
+                    if (prevFrame !== null) {
+                        const prevPositions = this.regionPositions.get(prevFrame);
+                        if (prevPositions) {
+                            prevPositions.forEach(pos => {
+                                const region = this.regions.find(r => r.id === pos.id);
+                                if (region) {
+                                    region.x = pos.x;
+                                    region.y = pos.y;
+                                    region.width = pos.width;
+                                    region.height = pos.height;
+                                    region.rotation = pos.rotation || 0;
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // Update overlay position
+                if (this.selectedRegionIndex >= 0) {
+                    this.updateRegionOverlayPosition();
+                    this.updateRegionOverlaySize();
+                }
+            }
+
+            findPreviousKeyframe(frameNum) {
+                for (let i = frameNum - 1; i >= 0; i--) {
+                    if (this.regionPositions.has(i)) {
+                        return i;
+                    }
+                }
+                return null;
+            }
+
+            applyRegionMosaics(highQuality = false) {
+                if (this.regions.length === 0) return;
+
+                // For preview, use fast canvas-based effects
+                if (!highQuality) {
+                    this.applyRegionMosaicsFast();
+                    return;
+                }
+
+                const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                const data = imageData.data;
+
+                for (const region of this.regions) {
+                    this.applyMosaicToRegion(data, region, imageData.width, imageData.height);
+                }
+
+                this.ctx.putImageData(imageData, 0, 0);
+            }
+
+            applyRegionMosaicsFast() {
+                // Fast preview using canvas operations
+                for (const region of this.regions) {
+                    const x = Math.floor(region.x);
+                    const y = Math.floor(region.y);
+                    const w = Math.floor(region.canvasWidth || region.width);
+                    const h = Math.floor(region.canvasHeight || region.height);
+                    const rotation = region.rotation || 0;
+                    const blockSize = Math.max(4, Math.floor(region.intensity * 2));
+
+                    this.ctx.save();
+                    this.ctx.translate(x + w/2, y + h/2);
+                    this.ctx.rotate(rotation * Math.PI / 180);
+
+                    // Create clip path based on shape
+                    this.ctx.beginPath();
+                    if (region.shape === 'ellipse') {
+                        this.ctx.ellipse(0, 0, w/2, h/2, 0, 0, Math.PI * 2);
+                    } else if (region.shape === 'diamond') {
+                        this.ctx.moveTo(0, -h/2);
+                        this.ctx.lineTo(w/2, 0);
+                        this.ctx.lineTo(0, h/2);
+                        this.ctx.lineTo(-w/2, 0);
+                        this.ctx.closePath();
+                    } else {
+                        this.ctx.rect(-w/2, -h/2, w, h);
+                    }
+                    this.ctx.clip();
+
+                    // Apply fast pixelation by scaling down and up
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    const scale = Math.max(1, blockSize) / 8;
+                    const smallW = Math.max(1, Math.floor(w / scale));
+                    const smallH = Math.max(1, Math.floor(h / scale));
+                    tempCanvas.width = smallW;
+                    tempCanvas.height = smallH;
+
+                    // Draw region to small canvas
+                    tempCtx.drawImage(this.canvas,
+                        x, y, w, h,
+                        0, 0, smallW, smallH);
+
+                    // Draw back scaled up (pixelated)
+                    this.ctx.imageSmoothingEnabled = false;
+                    this.ctx.drawImage(tempCanvas, -w/2, -h/2, w, h);
+                    this.ctx.imageSmoothingEnabled = true;
+
+                    this.ctx.restore();
+                }
+            }
+
+            applyMosaicToRegion(data, region, width, height) {
+                const x = Math.floor(region.x);
+                const y = Math.floor(region.y);
+                const w = Math.floor(region.canvasWidth || region.width);
+                const h = Math.floor(region.canvasHeight || region.height);
+                const rotation = (region.rotation || 0) * Math.PI / 180; // Convert to radians
+
+                // Resolution-based scaling
+                const baseResolution = 1920;
+                const imageSize = Math.max(this.canvas.width, this.canvas.height);
+                const scaleFactor = imageSize / baseResolution;
+                const blockSize = Math.max(1, Math.round(region.intensity * scaleFactor));
+
+                const shape = region.shape; // 'rect', 'ellipse', 'diamond'
+                const centerX = x + w / 2;
+                const centerY = y + h / 2;
+                const radiusX = w / 2;
+                const radiusY = h / 2;
+
+                // Calculate expanded bounding box for rotation
+                const cos = Math.abs(Math.cos(rotation));
+                const sin = Math.abs(Math.sin(rotation));
+                const expandedW = Math.ceil(w * cos + h * sin);
+                const expandedH = Math.ceil(w * sin + h * cos);
+                const startX = Math.max(0, Math.floor(centerX - expandedW / 2));
+                const startY = Math.max(0, Math.floor(centerY - expandedH / 2));
+                const endX = Math.min(width, Math.ceil(centerX + expandedW / 2));
+                const endY = Math.min(height, Math.ceil(centerY + expandedH / 2));
+
+                const cosR = Math.cos(-rotation);
+                const sinR = Math.sin(-rotation);
+                const blockCache = new Map();
+
+                for (let py = startY; py < endY; py++) {
+                    for (let px = startX; px < endX; px++) {
+                        // Transform pixel to local coordinate system (rotate around center)
+                        const relX = px - centerX;
+                        const relY = py - centerY;
+                        const localX = relX * cosR - relY * sinR;
+                        const localY = relX * sinR + relY * cosR;
+
+                        // Normalize to shape dimensions
+                        const normX = localX / radiusX;
+                        const normY = localY / radiusY;
+
+                        // Check if point is inside region based on shape
+                        let inside = false;
+                        if (shape === 'ellipse') {
+                            // Ellipse: check if inside ellipse equation
+                            inside = (normX * normX + normY * normY) <= 1;
+                        } else if (shape === 'diamond') {
+                            // Diamond: check if inside diamond (rotated square)
+                            inside = (Math.abs(normX) + Math.abs(normY)) <= 1;
+                        } else {
+                            // 'rect' shape: check if inside rectangle
+                            inside = Math.abs(normX) <= 1 && Math.abs(normY) <= 1;
+                        }
+
+                        if (!inside) continue;
+
+                        // Apply mosaic effect
+                        if (region.type === 'pixelate') {
+                            this.pixelatePixelFast(data, px, py, width, blockSize, blockCache);
+                        } else if (region.type === 'blur') {
+                            this.blurPixel(data, px, py, width, height);
+                        } else if (region.type === 'mosaic') {
+                            this.mosaicPixelFast(data, px, py, width, blockSize, blockCache);
+                        }
+                    }
+                }
+            }
+
+            onVideoEnded() {
+                this.stopPlaybackLoop();
+                this.isPlaying = false;
+                document.getElementById('playPauseBtn').textContent = '▶';
+                document.getElementById('recordingIndicator').classList.remove('active');
+            }
+
+            togglePlayback() {
+                if (!this.video.src) return;
+
+                const recIndicator = document.getElementById('recordingIndicator');
+
+                if (this.isPlaying) {
+                    this.stopPlaybackLoop();
+                    this.video.pause();
+                    this.isPlaying = false;
+                    document.getElementById('playPauseBtn').textContent = '▶';
+                    recIndicator.classList.remove('active');
+                } else {
+                    this.video.play();
+                    this.isPlaying = true;
+                    document.getElementById('playPauseBtn').textContent = '⏸';
+                    this.startPlaybackLoop();
+                    // Show REC indicator if there are regions
+                    if (this.regions.length > 0) {
+                        recIndicator.classList.add('active');
+                    }
+                }
+            }
+
+            startPlaybackLoop() {
+                let lastFrameNumber = -1;
+
+                const loop = () => {
+                    if (!this.isPlaying) return;
+
+                    const newFrameNumber = Math.floor(this.video.currentTime * this.fps);
+
+                    // フレームが変わったら位置を読み込み＆オーバーレイ更新
+                    if (newFrameNumber !== lastFrameNumber) {
+                        lastFrameNumber = newFrameNumber;
+                        this.currentFrameNumber = newFrameNumber;
+
+                        // ドラッグ/リサイズ中でなければ保存済みの位置を読み込む
+                        // ドラッグ/リサイズ中は手動で位置を決めているので上書きしない
+                        if (!this.isDraggingRegion && !this.isResizingRegion) {
+                            this.loadRegionPositionsForFrame();
+                        }
+                    }
+
+                    this.renderVideoFrame();
+                    this.animationFrameId = requestAnimationFrame(loop);
+                };
+                loop();
+            }
+
+            stopPlaybackLoop() {
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
+                    this.animationFrameId = null;
+                }
+            }
+
+            seekFrames(delta) {
+                if (!this.video.src) return;
+
+                const newTime = Math.max(0, Math.min(this.videoDuration,
+                    this.video.currentTime + (delta / this.fps)));
+                this.video.currentTime = newTime;
+
+                // Wait for seek to complete then render frame
+                this.video.onseeked = () => {
+                    this.renderVideoFrame();
+                    this.video.onseeked = null;
+                };
+            }
+
+            startTimelineDrag(e) {
+                if (!this.video.src) return;
+                this.isDraggingTimeline = true;
+                document.getElementById('timeline').classList.add('dragging');
+                this.seekToPosition(e);
+            }
+
+            dragTimeline(e) {
+                if (!this.isDraggingTimeline) return;
+                this.seekToPosition(e);
+            }
+
+            stopTimelineDrag() {
+                if (!this.isDraggingTimeline) return;
+                this.isDraggingTimeline = false;
+                document.getElementById('timeline').classList.remove('dragging');
+            }
+
+            seekToPosition(e) {
+                if (!this.video.src) return;
+
+                const timeline = document.getElementById('timeline');
+                const rect = timeline.getBoundingClientRect();
+                const position = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                const newTime = position * this.videoDuration;
+
+                // Update handle position immediately
+                const handle = document.getElementById('timelineHandle');
+                handle.style.left = (position * 100) + '%';
+
+                this.video.currentTime = Math.max(0, Math.min(this.videoDuration, newTime));
+                this.video.onseeked = () => {
+                    this.renderVideoFrame();
+                    this.video.onseeked = null;
+                };
+            }
+
+            formatTime(seconds) {
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = Math.floor(seconds % 60);
+                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            }
+
+            async exportVideo() {
+                if (!this.video.src || this.regions.length === 0) {
+                    this.showStatus('Add regions first', 'error');
+                    return;
+                }
+
+                this.showStatus(this.t('exporting'), 'success');
+                document.getElementById('loading').style.display = 'flex';
+                document.querySelector('.loading-text').textContent = 'EXPORTING VIDEO';
+
+                // Stop playback
+                this.stopPlaybackLoop();
+                this.video.pause();
+                this.isPlaying = false;
+                document.getElementById('playPauseBtn').textContent = '▶';
+
+                try {
+                    // Create a MediaRecorder to record the canvas
+                    const stream = this.canvas.captureStream(this.fps);
+
+                    // Try VP9, fall back to VP8 if not supported
+                    let mimeType = 'video/webm;codecs=vp9';
+                    if (!MediaRecorder.isTypeSupported(mimeType)) {
+                        mimeType = 'video/webm;codecs=vp8';
+                    }
+                    if (!MediaRecorder.isTypeSupported(mimeType)) {
+                        mimeType = 'video/webm';
+                    }
+
+                    const mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: mimeType,
+                        videoBitsPerSecond: 8000000
+                    });
+
+                    const chunks = [];
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) chunks.push(e.data);
+                    };
+
+                    let resolveRecording;
+                    const recordingComplete = new Promise((resolve) => {
+                        resolveRecording = resolve;
+                    });
+
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'video/webm' });
+                        resolveRecording(blob);
+                    };
+
+                    // Start recording
+                    mediaRecorder.start(100); // Collect data every 100ms
+
+                    // Process frames
+                    this.video.currentTime = 0;
+                    await new Promise(resolve => {
+                        this.video.onseeked = resolve;
+                    });
+
+                    const totalFramesToRender = this.totalFrames;
+                    let framesRendered = 0;
+
+                    const processFrame = async () => {
+                        if (this.video.currentTime >= this.videoDuration - 0.01) {
+                            mediaRecorder.stop();
+                            return;
+                        }
+
+                        const frameNum = Math.floor(this.video.currentTime * this.fps);
+
+                        // Load positions for this frame
+                        this.loadRegionPositionsForFrame();
+
+                        // Draw video frame with mosaic (high quality for export)
+                        this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
+                        this.applyRegionMosaics(true);
+
+                        framesRendered++;
+
+                        // Update progress (0-50% for recording)
+                        const progress = Math.round((framesRendered / totalFramesToRender) * 50);
+                        document.querySelector('.loading-text').textContent = `RECORDING ${progress}%`;
+
+                        // Advance to next frame
+                        const nextTime = this.video.currentTime + (1 / this.fps);
+                        this.video.currentTime = Math.min(this.videoDuration, nextTime);
+
+                        await new Promise(resolve => {
+                            this.video.onseeked = resolve;
+                        });
+
+                        // Small delay to allow MediaRecorder to capture frame
+                        await new Promise(resolve => setTimeout(resolve, 30));
+
+                        // Process next frame
+                        await processFrame();
+                    };
+
+                    await processFrame();
+                    const recordedBlob = await recordingComplete;
+
+                    // Try to convert WebM to MP4 using FFmpeg, fall back to WebM download
+                    let finalBlob = recordedBlob;
+                    let fileExtension = 'webm';
+
+                    try {
+                        // Check if FFmpeg 0.11.x is available
+                        if (typeof FFmpeg !== 'undefined' && FFmpeg.createFFmpeg) {
+                            document.querySelector('.loading-text').textContent = 'CONVERTING TO MP4...';
+
+                            const { createFFmpeg, fetchFile } = FFmpeg;
+                            const ffmpeg = createFFmpeg({
+                                log: false,
+                                progress: ({ ratio }) => {
+                                    const pct = 50 + Math.round(ratio * 50);
+                                    document.querySelector('.loading-text').textContent = `CONVERTING ${pct}%`;
+                                }
+                            });
+
+                            await ffmpeg.load();
+
+                            // Write WebM to FFmpeg filesystem
+                            ffmpeg.FS('writeFile', 'input.webm', await fetchFile(recordedBlob));
+
+                            // Convert to MP4
+                            await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '22', 'output.mp4');
+
+                            // Read the output file
+                            const data = ffmpeg.FS('readFile', 'output.mp4');
+                            finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
+                            fileExtension = 'mp4';
+                        } else {
+                            console.log('FFmpeg not available, downloading as WebM');
+                        }
+                    } catch (ffmpegError) {
+                        console.warn('FFmpeg conversion failed, downloading as WebM:', ffmpegError);
+                    }
+
+                    // Download the video
+                    const url = URL.createObjectURL(finalBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const nameWithoutExt = this.videoFileName.substring(0, this.videoFileName.lastIndexOf('.')) || this.videoFileName;
+                    a.download = `mosaic_${nameWithoutExt}.${fileExtension}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    document.getElementById('loading').style.display = 'none';
+                    this.showStatus(this.t('exportComplete'), 'success');
+
+                    // Return to first frame
+                    this.video.currentTime = 0;
+                    this.video.onseeked = () => {
+                        this.renderVideoFrame();
+                        this.video.onseeked = null;
+                    };
+
+                } catch (error) {
+                    console.error('Export error:', error);
+                    document.getElementById('loading').style.display = 'none';
+                    this.showStatus('Export failed: ' + error.message, 'error');
+                }
             }
         }
 
