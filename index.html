@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QUIZAMO Web - Mosaic Tool</title>
-    <!-- FFmpeg for MP4 conversion -->
+    <!-- mp4-muxer for WebCodecs-based MP4 encoding (primary, hardware-accelerated) -->
+    <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.min.js"></script>
+    <!-- FFmpeg for MP4 conversion (fallback when WebCodecs unavailable) -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js" crossorigin="anonymous"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600&display=swap');
@@ -1438,7 +1440,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.1.3</span>
+            <span class="version">v3.2.0</span>
         </div>
         <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
@@ -4015,213 +4017,35 @@
                 document.getElementById('playPauseBtn').textContent = '▶';
 
                 try {
-                    // Create a MediaRecorder to record the canvas
-                    const stream = this.canvas.captureStream(this.fps);
+                    // 優先順位: WebCodecs (HWエンコード) → FFmpeg.wasm → リアルタイム録画
+                    const canUseWebCodecs = typeof VideoEncoder !== 'undefined' &&
+                        typeof Mp4Muxer !== 'undefined';
+                    const canUseFFmpeg = crossOriginIsolated &&
+                        typeof FFmpeg !== 'undefined' && FFmpeg.createFFmpeg;
 
-                    // Try VP9, fall back to VP8 if not supported
-                    let mimeType = 'video/webm;codecs=vp9';
-                    if (!MediaRecorder.isTypeSupported(mimeType)) {
-                        mimeType = 'video/webm;codecs=vp8';
-                    }
-                    if (!MediaRecorder.isTypeSupported(mimeType)) {
-                        mimeType = 'video/webm';
-                    }
-
-                    const mediaRecorder = new MediaRecorder(stream, {
-                        mimeType: mimeType,
-                        videoBitsPerSecond: 8000000
-                    });
-
-                    const chunks = [];
-                    mediaRecorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) chunks.push(e.data);
-                    };
-
-                    let resolveRecording;
-                    const recordingComplete = new Promise((resolve) => {
-                        resolveRecording = resolve;
-                    });
-
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(chunks, { type: 'video/webm' });
-                        resolveRecording(blob);
-                    };
-
-                    // Start recording
-                    mediaRecorder.start(100); // Collect data every 100ms
-                    const recordingStartTime = performance.now();
-
-                    // Process frames
-                    this.video.currentTime = 0;
-                    await new Promise(resolve => {
-                        this.video.onseeked = resolve;
-                    });
-
-                    const totalFramesToRender = this.totalFrames;
-                    let framesRendered = 0;
-
-                    const processFrame = async () => {
-                        if (this.video.currentTime >= this.videoDuration - 0.01) {
-                            mediaRecorder.stop();
-                            return;
+                    if (canUseWebCodecs) {
+                        try {
+                            await this.exportVideoWithWebCodecs();
+                        } catch (webCodecsError) {
+                            console.warn('WebCodecs failed, trying fallback:', webCodecsError);
+                            if (canUseFFmpeg) {
+                                await this.exportVideoWithFFmpeg();
+                            } else {
+                                await this.exportVideoRealtime();
+                            }
                         }
-
-                        // Update current frame number for position loading
-                        this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
-
-                        // Load positions for this frame
-                        this.loadRegionPositionsForFrame();
-
-                        // Draw video frame with mosaic
-                        this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
-                        this.applyRegionMosaics();
-
-                        framesRendered++;
-
-                        // Update progress for recording phase (0-100%)
-                        const progress = Math.round((framesRendered / totalFramesToRender) * 100);
-                        document.querySelector('.loading-text').textContent = 'RECORDING (1/2)';
-                        document.querySelector('.loading-progress-fill').style.width = progress + '%';
-                        document.querySelector('.loading-progress-text').textContent = progress + '%';
-
-                        // Advance to next frame
-                        const nextTime = this.video.currentTime + (1 / this.fps);
-                        this.video.currentTime = Math.min(this.videoDuration, nextTime);
-
-                        await new Promise(resolve => {
-                            this.video.onseeked = resolve;
-                        });
-
-                        // Small delay to allow MediaRecorder to capture frame
-                        await new Promise(resolve => setTimeout(resolve, 30));
-
-                        // Process next frame
-                        await processFrame();
-                    };
-
-                    await processFrame();
-                    const recordedBlob = await recordingComplete;
-                    const recordingEndTime = performance.now();
-                    const actualRecordedDuration = (recordingEndTime - recordingStartTime) / 1000; // in seconds
-
-                    // Convert WebM to MP4 using FFmpeg
-                    let finalBlob = recordedBlob;
-                    let fileExtension = 'webm';
-
-                    try {
-                        // Check if SharedArrayBuffer is available (required for FFmpeg)
-                        if (!crossOriginIsolated) {
-                            console.log('crossOriginIsolated is false - FFmpeg requires COOP/COEP headers');
-                            throw new Error('CORS isolation required');
-                        }
-
-                        if (typeof FFmpeg !== 'undefined' && FFmpeg.createFFmpeg) {
-                            document.querySelector('.loading-text').textContent = 'CONVERTING (2/2)';
-                            document.querySelector('.loading-progress-fill').style.width = '0%';
-                            document.querySelector('.loading-progress-text').textContent = 'Loading FFmpeg...';
-                            document.querySelector('.loading-progress-bar').classList.add('indeterminate');
-
-                            const { createFFmpeg, fetchFile } = FFmpeg;
-                            let lastProgress = 0;
-                            const expectedFrames = framesRendered; // Use actual frames recorded
-
-                            const ffmpeg = createFFmpeg({
-                                log: true,
-                                progress: ({ ratio }) => {
-                                    // Fallback to ratio if available
-                                    if (ratio && !isNaN(ratio) && ratio > 0) {
-                                        document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
-                                        const pct = Math.round(ratio * 100);
-                                        if (pct > lastProgress) {
-                                            lastProgress = pct;
-                                            document.querySelector('.loading-progress-fill').style.width = pct + '%';
-                                            document.querySelector('.loading-progress-text').textContent = pct + '%';
-                                        }
-                                    }
-                                }
-                            });
-
-                            // Set custom logger to parse time-based progress
-                            // Use actual recorded duration, not original video duration
-                            const totalDuration = actualRecordedDuration;
-                            ffmpeg.setLogger(({ type, message }) => {
-                                if (type === 'fferr' && message.includes('time=')) {
-                                    // Parse time=00:00:01.32 format
-                                    const timeMatch = message.match(/time=(\d+):(\d+):(\d+\.?\d*)/);
-                                    if (timeMatch) {
-                                        const hours = parseInt(timeMatch[1]);
-                                        const minutes = parseInt(timeMatch[2]);
-                                        const seconds = parseFloat(timeMatch[3]);
-                                        const currentTime = hours * 3600 + minutes * 60 + seconds;
-                                        const pct = Math.min(99, Math.round((currentTime / totalDuration) * 100));
-                                        if (pct > lastProgress) {
-                                            lastProgress = pct;
-                                            document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
-                                            document.querySelector('.loading-progress-fill').style.width = pct + '%';
-                                            document.querySelector('.loading-progress-text').textContent = pct + '%';
-                                        }
-                                    }
-                                }
-                            });
-
-                            await ffmpeg.load();
-                            document.querySelector('.loading-progress-text').textContent = '0%';
-                            document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
-
-                            // Write WebM to FFmpeg filesystem
-                            ffmpeg.FS('writeFile', 'input.webm', await fetchFile(recordedBlob));
-
-                            // Convert to MP4 with compatible settings
-                            await ffmpeg.run(
-                                '-i', 'input.webm',
-                                '-c:v', 'libx264',
-                                '-preset', 'fast',
-                                '-crf', '23',
-                                '-pix_fmt', 'yuv420p',
-                                '-movflags', '+faststart',
-                                'output.mp4'
-                            );
-
-                            // Read the output file
-                            const data = ffmpeg.FS('readFile', 'output.mp4');
-                            finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
-                            fileExtension = 'mp4';
-
-                            // Complete progress
-                            document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
-                            document.querySelector('.loading-progress-fill').style.width = '100%';
-                            document.querySelector('.loading-progress-text').textContent = '100%';
-                        } else {
-                            console.log('FFmpeg not available');
-                        }
-                    } catch (ffmpegError) {
-                        console.warn('FFmpeg conversion failed:', ffmpegError);
+                    } else if (canUseFFmpeg) {
+                        await this.exportVideoWithFFmpeg();
+                    } else {
+                        await this.exportVideoRealtime();
                     }
-
-                    // Download the video
-                    const url = URL.createObjectURL(finalBlob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    const nameWithoutExt = this.videoFileName.substring(0, this.videoFileName.lastIndexOf('.')) || this.videoFileName;
-                    a.download = `mosaic_${nameWithoutExt}.${fileExtension}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-
+                } catch (error) {
+                    console.error('Export error:', error);
+                    this.showStatus('Export failed: ' + error.message, 'error');
+                } finally {
                     document.getElementById('loading').style.display = 'none';
                     document.querySelector('.loading-progress-container').style.display = 'none';
                     document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
-                    if (fileExtension === 'mp4') {
-                        this.showStatus(this.t('exportComplete'), 'success');
-                    } else {
-                        // WebM fallback - explain why
-                        if (!crossOriginIsolated) {
-                            this.showStatus('WebM出力（MP4変換にはHTTPSサーバーが必要）', 'success');
-                        } else {
-                            this.showStatus('WebM出力完了', 'success');
-                        }
-                    }
 
                     // Return to first frame
                     this.video.currentTime = 0;
@@ -4229,14 +4053,354 @@
                         this.renderVideoFrame();
                         this.video.onseeked = null;
                     };
-
-                } catch (error) {
-                    console.error('Export error:', error);
-                    document.getElementById('loading').style.display = 'none';
-                    document.querySelector('.loading-progress-container').style.display = 'none';
-                    document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
-                    this.showStatus('Export failed: ' + error.message, 'error');
                 }
+            }
+
+            // WebCodecs方式: ハードウェアH.264エンコード → mp4-muxerでMP4コンテナ
+            // 最速方式。GPU/ハードウェアエンコーダを使用するためリアルタイム以上の速度
+            async exportVideoWithWebCodecs() {
+                const progressFill = document.querySelector('.loading-progress-fill');
+                const progressText = document.querySelector('.loading-progress-text');
+                const loadingText = document.querySelector('.loading-text');
+
+                loadingText.textContent = 'ENCODING MP4';
+                progressFill.style.width = '0%';
+                progressText.textContent = '0%';
+
+                // H.264はeven dimensionsが必要
+                const encWidth = this.originalWidth % 2 === 0 ? this.originalWidth : this.originalWidth - 1;
+                const encHeight = this.originalHeight % 2 === 0 ? this.originalHeight : this.originalHeight - 1;
+
+                // H.264コーデック設定を検証
+                const config = {
+                    codec: 'avc1.4d0028', // Main Profile, Level 4.0
+                    width: encWidth,
+                    height: encHeight,
+                    bitrate: 8_000_000,
+                    framerate: this.fps,
+                };
+
+                const support = await VideoEncoder.isConfigSupported(config);
+                if (!support.supported) {
+                    throw new Error('H.264 encoding not supported');
+                }
+
+                // mp4-muxerでMP4コンテナを作成
+                const muxer = new Mp4Muxer.Muxer({
+                    target: new Mp4Muxer.ArrayBufferTarget(),
+                    video: {
+                        codec: 'avc',
+                        width: encWidth,
+                        height: encHeight,
+                    },
+                    fastStart: 'in-memory',
+                });
+
+                // VideoEncoderを作成（出力を直接muxerへ）
+                const encoder = new VideoEncoder({
+                    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+                    error: (e) => console.error('VideoEncoder error:', e),
+                });
+
+                encoder.configure(config);
+
+                // 先頭にシーク
+                this.video.currentTime = 0;
+                await new Promise(resolve => { this.video.onseeked = resolve; });
+
+                const totalFrames = Math.floor(this.videoDuration * this.fps);
+                const frameDuration = Math.round(1_000_000 / this.fps); // マイクロ秒
+
+                // エンコード用の一時キャンバス（奇数サイズ対応）
+                let encCanvas = this.canvas;
+                let encCtx = this.ctx;
+                if (encWidth !== this.originalWidth || encHeight !== this.originalHeight) {
+                    encCanvas = document.createElement('canvas');
+                    encCanvas.width = encWidth;
+                    encCanvas.height = encHeight;
+                    encCtx = encCanvas.getContext('2d');
+                }
+
+                for (let i = 0; i < totalFrames; i++) {
+                    this.currentFrameNumber = i;
+                    this.loadRegionPositionsForFrame();
+                    this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
+                    this.applyRegionMosaics();
+
+                    // 奇数サイズの場合は一時キャンバスにコピー
+                    if (encCanvas !== this.canvas) {
+                        encCtx.drawImage(this.canvas, 0, 0, encWidth, encHeight);
+                    }
+
+                    // VideoFrameを作成してエンコード
+                    const frame = new VideoFrame(encCanvas, {
+                        timestamp: i * frameDuration,
+                        duration: frameDuration,
+                    });
+
+                    // 2秒ごとにキーフレーム
+                    const keyFrame = i % (this.fps * 2) === 0;
+                    encoder.encode(frame, { keyFrame });
+                    frame.close();
+
+                    // 進捗更新
+                    const progress = Math.round(((i + 1) / totalFrames) * 100);
+                    progressFill.style.width = progress + '%';
+                    progressText.textContent = progress + '%';
+
+                    // 次フレームへシーク
+                    if (i < totalFrames - 1) {
+                        this.video.currentTime = (i + 1) / this.fps;
+                        await new Promise(resolve => { this.video.onseeked = resolve; });
+                    }
+
+                    // エンコーダのバックプレッシャー制御
+                    while (encoder.encodeQueueSize > 5) {
+                        await new Promise(resolve => setTimeout(resolve, 1));
+                    }
+
+                    // UIフリーズ防止
+                    if (i % 10 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                }
+
+                // フラッシュ → ファイナライズ
+                await encoder.flush();
+                encoder.close();
+                muxer.finalize();
+
+                const finalBlob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+
+                progressFill.style.width = '100%';
+                progressText.textContent = '100%';
+
+                this.downloadBlob(finalBlob, 'mp4');
+                this.showStatus(this.t('exportComplete'), 'success');
+            }
+
+            // FFmpeg方式: フレームをJPEGキャプチャ → 正しいfpsでMP4エンコード
+            // MediaRecorderを使わないため、タイミングが正確でスローモーションにならない（WebCodecs非対応時のフォールバック）
+            async exportVideoWithFFmpeg() {
+                const { createFFmpeg } = FFmpeg;
+                const progressFill = document.querySelector('.loading-progress-fill');
+                const progressText = document.querySelector('.loading-progress-text');
+                const loadingText = document.querySelector('.loading-text');
+                const progressBar = document.querySelector('.loading-progress-bar');
+
+                // Phase 1: FFmpegロード
+                loadingText.textContent = 'Loading FFmpeg...';
+                progressBar.classList.add('indeterminate');
+
+                let lastProgress = 0;
+                const ffmpeg = createFFmpeg({
+                    log: true,
+                    progress: ({ ratio }) => {
+                        if (ratio && !isNaN(ratio) && ratio > 0) {
+                            progressBar.classList.remove('indeterminate');
+                            const pct = Math.round(ratio * 100);
+                            if (pct > lastProgress) {
+                                lastProgress = pct;
+                                progressFill.style.width = pct + '%';
+                                progressText.textContent = pct + '%';
+                            }
+                        }
+                    }
+                });
+
+                // エンコード進捗をFFmpegログから解析
+                ffmpeg.setLogger(({ type, message }) => {
+                    if (type === 'fferr' && message.includes('time=')) {
+                        const timeMatch = message.match(/time=(\d+):(\d+):(\d+\.?\d*)/);
+                        if (timeMatch) {
+                            const currentTime = parseInt(timeMatch[1]) * 3600 +
+                                parseInt(timeMatch[2]) * 60 + parseFloat(timeMatch[3]);
+                            const pct = Math.min(99, Math.round((currentTime / this.videoDuration) * 100));
+                            if (pct > lastProgress) {
+                                lastProgress = pct;
+                                progressBar.classList.remove('indeterminate');
+                                progressFill.style.width = pct + '%';
+                                progressText.textContent = pct + '%';
+                            }
+                        }
+                    }
+                });
+
+                await ffmpeg.load();
+                progressBar.classList.remove('indeterminate');
+
+                // Phase 2: フレームキャプチャ → JPEG → FFmpeg仮想FSに書き込み
+                loadingText.textContent = 'CAPTURING FRAMES (1/2)';
+                progressFill.style.width = '0%';
+                progressText.textContent = '0%';
+
+                this.video.currentTime = 0;
+                await new Promise(resolve => { this.video.onseeked = resolve; });
+
+                const totalFrames = Math.floor(this.videoDuration * this.fps);
+
+                for (let i = 0; i < totalFrames; i++) {
+                    this.currentFrameNumber = i;
+                    this.loadRegionPositionsForFrame();
+                    this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
+                    this.applyRegionMosaics();
+
+                    // JPEGとしてキャプチャ → FFmpeg FSに即時書き込み
+                    const blob = await new Promise(resolve => {
+                        this.canvas.toBlob(resolve, 'image/jpeg', 0.95);
+                    });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    ffmpeg.FS('writeFile',
+                        `f${String(i).padStart(5, '0')}.jpg`,
+                        new Uint8Array(arrayBuffer));
+
+                    // 進捗更新
+                    const progress = Math.round(((i + 1) / totalFrames) * 100);
+                    progressFill.style.width = progress + '%';
+                    progressText.textContent = progress + '%';
+
+                    // 次フレームへシーク
+                    if (i < totalFrames - 1) {
+                        this.video.currentTime = (i + 1) / this.fps;
+                        await new Promise(resolve => { this.video.onseeked = resolve; });
+                    }
+
+                    // UIスレッドへ制御を返す（フリーズ防止）
+                    if (i % 10 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                }
+
+                // Phase 3: JPEG連番 → MP4エンコード（正しいフレームレート指定）
+                loadingText.textContent = 'ENCODING MP4 (2/2)';
+                progressFill.style.width = '0%';
+                progressText.textContent = '0%';
+                lastProgress = 0;
+
+                await ffmpeg.run(
+                    '-framerate', String(this.fps),
+                    '-i', 'f%05d.jpg',
+                    '-c:v', 'libx264',
+                    '-preset', 'ultrafast',
+                    '-crf', '23',
+                    '-pix_fmt', 'yuv420p',
+                    '-movflags', '+faststart',
+                    'output.mp4'
+                );
+
+                // 出力ファイル読み取り
+                const data = ffmpeg.FS('readFile', 'output.mp4');
+                const finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
+
+                progressFill.style.width = '100%';
+                progressText.textContent = '100%';
+
+                // クリーンアップ: FFmpeg FSからフレームファイルを削除
+                for (let i = 0; i < totalFrames; i++) {
+                    try {
+                        ffmpeg.FS('unlink', `f${String(i).padStart(5, '0')}.jpg`);
+                    } catch (e) { /* ignore */ }
+                }
+                try { ffmpeg.FS('unlink', 'output.mp4'); } catch (e) { /* ignore */ }
+
+                this.downloadBlob(finalBlob, 'mp4');
+                this.showStatus(this.t('exportComplete'), 'success');
+            }
+
+            // フォールバック方式: リアルタイム再生しながらMediaRecorderで録画
+            // FFmpegが使えない環境用（WebM出力）
+            async exportVideoRealtime() {
+                const progressFill = document.querySelector('.loading-progress-fill');
+                const progressText = document.querySelector('.loading-progress-text');
+                const loadingText = document.querySelector('.loading-text');
+                loadingText.textContent = 'RECORDING VIDEO';
+
+                // MediaRecorderセットアップ
+                const stream = this.canvas.captureStream(this.fps);
+                let mimeType = 'video/webm;codecs=vp9';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+
+                const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType,
+                    videoBitsPerSecond: 8000000
+                });
+
+                const chunks = [];
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                };
+
+                const recordingComplete = new Promise(resolve => {
+                    mediaRecorder.onstop = () => {
+                        resolve(new Blob(chunks, { type: 'video/webm' }));
+                    };
+                });
+
+                // 先頭にシーク
+                this.video.currentTime = 0;
+                await new Promise(resolve => { this.video.onseeked = resolve; });
+
+                // 録画開始 → 1倍速で再生（正しいタイミングで録画される）
+                mediaRecorder.start(100);
+                this.video.playbackRate = 1.0;
+                this.video.play();
+
+                // リアルタイムレンダリングループ
+                await new Promise((resolve) => {
+                    const renderLoop = () => {
+                        if (this.video.ended || this.video.paused) {
+                            return;
+                        }
+
+                        this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
+                        this.loadRegionPositionsForFrame();
+                        this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
+                        this.applyRegionMosaics();
+
+                        // 進捗更新
+                        const progress = Math.round((this.video.currentTime / this.videoDuration) * 100);
+                        progressFill.style.width = progress + '%';
+                        progressText.textContent = progress + '%';
+
+                        requestAnimationFrame(renderLoop);
+                    };
+
+                    this.video.onended = () => {
+                        // 最終フレームをレンダリング
+                        this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
+                        this.applyRegionMosaics();
+                        mediaRecorder.stop();
+                        resolve();
+                    };
+
+                    renderLoop();
+                });
+
+                const webmBlob = await recordingComplete;
+
+                // 再生速度を元に戻す
+                this.video.playbackRate = this.playbackSpeed;
+
+                this.downloadBlob(webmBlob, 'webm');
+
+                if (!crossOriginIsolated) {
+                    this.showStatus('WebM出力（MP4変換にはHTTPSサーバーが必要）', 'success');
+                } else {
+                    this.showStatus('WebM出力完了', 'success');
+                }
+            }
+
+            downloadBlob(blob, extension) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const nameWithoutExt = this.videoFileName.substring(0, this.videoFileName.lastIndexOf('.')) || this.videoFileName;
+                a.download = `mosaic_${nameWithoutExt}.${extension}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             }
         }
 
