@@ -77,13 +77,14 @@
         }
 
         .indicator {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
             font-size: 13px;
             font-weight: 200;
             color: var(--text-secondary);
             letter-spacing: 2px;
+            background: rgba(10, 10, 10, 0.7);
+            padding: 4px 12px;
+            border-radius: 4px;
+            white-space: nowrap;
         }
 
         .indicator.saved {
@@ -593,10 +594,6 @@
         /* Recording Indicator */
         .recording-indicator {
             display: none;
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
             color: #ff4444;
             font-size: 11px;
             font-weight: bold;
@@ -604,8 +601,8 @@
             background: rgba(10, 10, 10, 0.8);
             border: 1px solid #ff4444;
             border-radius: 4px;
-            z-index: 100;
             animation: pulse 1s infinite;
+            white-space: nowrap;
         }
 
         .recording-indicator.active {
@@ -707,10 +704,11 @@
         /* Main Container */
         .main-container {
             margin-top: 60px;
-            flex: 1;
+            height: calc(100vh - 60px);
             display: flex;
             padding: 15px;
             gap: 15px;
+            overflow: hidden;
         }
 
         /* Canvas Section */
@@ -718,8 +716,17 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 10px;
             min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .canvas-viewport {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+            display: flex;
         }
 
         .canvas-wrapper {
@@ -727,14 +734,26 @@
             border: 1px solid var(--border);
             position: relative;
             display: flex;
-            min-height: 600px;
             flex: 1;
             overflow: auto;
             min-width: 0;
+            min-height: 0;
         }
 
         .canvas-wrapper #canvas {
             margin: auto;
+        }
+
+        .canvas-center-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            pointer-events: none;
         }
 
         .canvas-wrapper.dragover {
@@ -1447,9 +1466,8 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.2.1</span>
+            <span class="version">v3.2.2</span>
         </div>
-        <div class="indicator" id="indicator"></div>
         <div class="header-toggles">
             <div class="mode-toggle">
                 <span class="toggle-icon active" id="photoIcon">📷</span>
@@ -1471,8 +1489,8 @@
 
     <div class="main-container">
         <div class="canvas-section">
+            <div class="canvas-viewport">
             <div class="canvas-wrapper" id="dropZone">
-                <div class="recording-indicator" id="recordingIndicator">● REC</div>
                 <div class="drop-hint" id="dropHint">
                     <span data-i18n="dropHint">DROP IMAGES HERE</span><br>
                     <span style="font-size: 10px; opacity: 0.5;" data-i18n="dropHintSub">or click to select files</span>
@@ -1487,6 +1505,11 @@
                     <div class="move-handle"></div>
                     <div class="resize-handle se"></div>
                 </div>
+            </div>
+            <div class="canvas-center-indicator">
+                <span class="indicator" id="indicator"></span>
+                <span class="recording-indicator" id="recordingIndicator">● REC</span>
+            </div>
             </div>
 
             <div class="navigation">
