@@ -249,6 +249,7 @@
             background: var(--secondary);
             border: 1px solid var(--border);
             border-top: none;
+            flex-shrink: 0;
         }
 
         body.video-mode .video-controls {
@@ -838,6 +839,7 @@
             gap: 1px;
             background: var(--border);
             overflow: hidden;
+            flex-shrink: 0;
         }
 
         .nav-btn {
@@ -1466,7 +1468,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.2.2</span>
+            <span class="version">v3.2.3</span>
         </div>
         <div class="header-toggles">
             <div class="mode-toggle">
@@ -1902,16 +1904,8 @@
                 document.getElementById('undoRegionBtn').addEventListener('click', () => this.undoRegionPosition());
 
                 // Video zoom
-                document.getElementById('zoomInBtnVideo').addEventListener('click', () => {
-                    this.zoomIn();
-                    document.getElementById('zoomLevelVideo').textContent = Math.round(this.zoomLevel * 100) + '%';
-                    this.updateRegionOverlayPosition();
-                });
-                document.getElementById('zoomOutBtnVideo').addEventListener('click', () => {
-                    this.zoomOut();
-                    document.getElementById('zoomLevelVideo').textContent = Math.round(this.zoomLevel * 100) + '%';
-                    this.updateRegionOverlayPosition();
-                });
+                document.getElementById('zoomInBtnVideo').addEventListener('click', () => this.zoomIn());
+                document.getElementById('zoomOutBtnVideo').addEventListener('click', () => this.zoomOut());
 
                 // Timeline drag
                 const timeline = document.getElementById('timeline');
@@ -2001,8 +1995,8 @@
                 this.cachedOverlay = overlay;
                 this.cachedScaleX = this.canvas.width / this.cachedCanvasRect.width;
                 this.cachedScaleY = this.canvas.height / this.cachedCanvasRect.height;
-                this.cachedCanvasLeft = this.cachedCanvasRect.left - this.cachedWrapperRect.left;
-                this.cachedCanvasTop = this.cachedCanvasRect.top - this.cachedWrapperRect.top;
+                this.cachedCanvasLeft = this.cachedCanvasRect.left - this.cachedWrapperRect.left + canvasWrapper.scrollLeft;
+                this.cachedCanvasTop = this.cachedCanvasRect.top - this.cachedWrapperRect.top + canvasWrapper.scrollTop;
 
                 // Record starting positions for delta-based movement
                 this.dragStartMouseX = e.clientX;
@@ -2219,14 +2213,15 @@
                 if (this.selectedRegionIndex < 0) return;
 
                 const overlay = document.getElementById('regionOverlay');
+                const wrapper = document.getElementById('dropZone');
                 const canvasRect = this.canvas.getBoundingClientRect();
-                const wrapperRect = document.getElementById('dropZone').getBoundingClientRect();
+                const wrapperRect = wrapper.getBoundingClientRect();
 
                 const overlayLeft = parseFloat(overlay.style.left) || 0;
                 const overlayTop = parseFloat(overlay.style.top) || 0;
 
-                const canvasLeft = canvasRect.left - wrapperRect.left;
-                const canvasTop = canvasRect.top - wrapperRect.top;
+                const canvasLeft = canvasRect.left - wrapperRect.left + wrapper.scrollLeft;
+                const canvasTop = canvasRect.top - wrapperRect.top + wrapper.scrollTop;
 
                 // Convert screen position to canvas coordinates
                 const scaleX = this.canvas.width / canvasRect.width;
@@ -2607,16 +2602,10 @@
                             case 'q':
                                 e.preventDefault();
                                 this.zoomOut();
-                                document.getElementById('zoomLevelVideo').textContent = Math.round(this.zoomLevel * 100) + '%';
-                                this.updateRegionOverlayPosition();
-                                this.updateRegionOverlaySize();
                                 break;
                             case 'e':
                                 e.preventDefault();
                                 this.zoomIn();
-                                document.getElementById('zoomLevelVideo').textContent = Math.round(this.zoomLevel * 100) + '%';
-                                this.updateRegionOverlayPosition();
-                                this.updateRegionOverlaySize();
                                 break;
                         }
                         return;
@@ -2795,6 +2784,12 @@
 
                 const percentage = Math.round(this.zoomLevel * 100);
                 document.getElementById('zoomResetBtn').textContent = `${percentage}%`;
+                const videoZoomEl = document.getElementById('zoomLevelVideo');
+                if (videoZoomEl) videoZoomEl.textContent = `${percentage}%`;
+
+                // Update region overlay position/size after zoom change
+                this.updateRegionOverlayPosition();
+                this.updateRegionOverlaySize();
             }
 
             updateIntensityDisplay() {
@@ -3528,11 +3523,12 @@
 
                 const region = this.regions[this.selectedRegionIndex];
                 const overlay = document.getElementById('regionOverlay');
+                const wrapper = document.getElementById('dropZone');
                 const canvasRect = this.canvas.getBoundingClientRect();
-                const wrapperRect = document.getElementById('dropZone').getBoundingClientRect();
+                const wrapperRect = wrapper.getBoundingClientRect();
 
-                const canvasLeft = canvasRect.left - wrapperRect.left;
-                const canvasTop = canvasRect.top - wrapperRect.top;
+                const canvasLeft = canvasRect.left - wrapperRect.left + wrapper.scrollLeft;
+                const canvasTop = canvasRect.top - wrapperRect.top + wrapper.scrollTop;
 
                 // Convert canvas coordinates to screen position
                 const scaleX = canvasRect.width / this.canvas.width;
