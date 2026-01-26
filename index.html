@@ -719,6 +719,7 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            min-width: 0;
         }
 
         .canvas-wrapper {
@@ -726,11 +727,14 @@
             border: 1px solid var(--border);
             position: relative;
             display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 600px;
             flex: 1;
             overflow: auto;
+            min-width: 0;
+        }
+
+        .canvas-wrapper #canvas {
+            margin: auto;
         }
 
         .canvas-wrapper.dragover {
@@ -740,6 +744,9 @@
 
         .drop-hint {
             position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             font-size: 14px;
             color: var(--text-secondary);
             letter-spacing: 2px;
