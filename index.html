@@ -76,14 +76,20 @@
             opacity: 0.7;
         }
 
+        .header-indicator {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
         .indicator {
             font-size: 13px;
             font-weight: 200;
             color: var(--text-secondary);
             letter-spacing: 2px;
-            background: rgba(10, 10, 10, 0.7);
-            padding: 4px 12px;
-            border-radius: 4px;
             white-space: nowrap;
         }
 
@@ -743,18 +749,6 @@
 
         .canvas-wrapper #canvas {
             margin: auto;
-        }
-
-        .canvas-center-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            pointer-events: none;
         }
 
         .canvas-wrapper.dragover {
@@ -1468,7 +1462,11 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.2.3</span>
+            <span class="version">v3.2.4</span>
+        </div>
+        <div class="header-indicator">
+            <span class="indicator" id="indicator"></span>
+            <span class="recording-indicator" id="recordingIndicator">● REC</span>
         </div>
         <div class="header-toggles">
             <div class="mode-toggle">
@@ -1507,10 +1505,6 @@
                     <div class="move-handle"></div>
                     <div class="resize-handle se"></div>
                 </div>
-            </div>
-            <div class="canvas-center-indicator">
-                <span class="indicator" id="indicator"></span>
-                <span class="recording-indicator" id="recordingIndicator">● REC</span>
             </div>
             </div>
 
