@@ -1462,7 +1462,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.3.0</span>
+            <span class="version">v3.3.1</span>
         </div>
         <div class="header-indicator">
             <span class="recording-indicator" id="recordingIndicator">● REC</span>
@@ -3685,13 +3685,18 @@
                 this.setZoom(1);
                 document.getElementById('zoomLevelVideo').textContent = '100%';
 
-                // Clear regions
-                this.regions = [];
+                // Keep existing regions but clear frame-specific data
                 this.regionPositions.clear();
                 this.positionHistory = [];
-                this.selectedRegionIndex = -1;
-                this.updateRegionList();
-                this.hideRegionOverlay();
+                if (this.regions.length > 0) {
+                    this.selectedRegionIndex = 0;
+                    this.updateRegionList();
+                    this.showRegionOverlay();
+                } else {
+                    this.selectedRegionIndex = -1;
+                    this.updateRegionList();
+                    this.hideRegionOverlay();
+                }
 
                 this.showStatus(`${this.t('videoLoaded')} (${this.fps}fps)`, 'success');
             }
