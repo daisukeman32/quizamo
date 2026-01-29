@@ -1462,7 +1462,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.3.1</span>
+            <span class="version">v3.3.2</span>
         </div>
         <div class="header-indicator">
             <span class="recording-indicator" id="recordingIndicator">● REC</span>
@@ -2730,6 +2730,7 @@
                 const url = URL.createObjectURL(file);
                 this.video.src = url;
                 this.videoFileName = file.name;
+                this.videoFileSize = file.size;
 
                 document.getElementById('videoName').textContent = file.name;
             }
@@ -3638,6 +3639,7 @@
                 const url = URL.createObjectURL(file);
                 this.video.src = url;
                 this.videoFileName = file.name;
+                this.videoFileSize = file.size;
 
                 document.getElementById('videoName').textContent = file.name;
             }
@@ -3768,10 +3770,14 @@
             }
 
             calculateBitrate() {
-                // Adaptive bitrate based on resolution and fps
-                // ~0.1 bits per pixel per frame for H.264
+                // Estimate original bitrate from source file size
+                if (this.videoFileSize && this.videoDuration > 0) {
+                    const originalBitrate = (this.videoFileSize * 8) / this.videoDuration;
+                    return Math.max(1_000_000, Math.round(originalBitrate));
+                }
+                // Fallback: estimate from resolution and fps
                 const pixelsPerSecond = this.originalWidth * this.originalHeight * this.fps;
-                return Math.max(1_000_000, Math.min(20_000_000, Math.round(pixelsPerSecond * 0.1)));
+                return Math.max(1_000_000, Math.min(20_000_000, Math.round(pixelsPerSecond * 0.2)));
             }
 
             renderVideoFrame() {
