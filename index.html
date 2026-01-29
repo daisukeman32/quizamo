@@ -1462,7 +1462,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.2.5</span>
+            <span class="version">v3.3.0</span>
         </div>
         <div class="header-indicator">
             <span class="recording-indicator" id="recordingIndicator">● REC</span>
@@ -1761,7 +1761,7 @@
                 this.isPlaying = false;
                 this.currentFrameNumber = 0;
                 this.totalFrames = 0;
-                this.fps = 30; // Default, will be detected
+                this.fps = 30;
                 this.videoDuration = 0;
                 this.playbackSpeed = 0.5;
 
@@ -3642,16 +3642,16 @@
                 document.getElementById('videoName').textContent = file.name;
             }
 
-            onVideoLoaded() {
-                document.getElementById('loading').style.display = 'none';
-
+            async onVideoLoaded() {
                 this.videoDuration = this.video.duration;
                 this.originalWidth = this.video.videoWidth;
                 this.originalHeight = this.video.videoHeight;
 
-                // Estimate FPS (default to 30 if can't detect)
-                this.fps = 30;
+                // Detect FPS from source video
+                document.querySelector('.loading-text').textContent = 'DETECTING FRAMERATE...';
+                this.fps = await this.detectFPS();
                 this.totalFrames = Math.floor(this.videoDuration * this.fps);
+                document.getElementById('loading').style.display = 'none';
 
                 // Setup canvas
                 this.canvas.width = this.originalWidth;
@@ -3693,7 +3693,80 @@
                 this.updateRegionList();
                 this.hideRegionOverlay();
 
-                this.showStatus(this.t('videoLoaded'), 'success');
+                this.showStatus(`${this.t('videoLoaded')} (${this.fps}fps)`, 'success');
+            }
+
+            async detectFPS() {
+                const video = this.video;
+
+                // Wait for video to be playable
+                if (video.readyState < 3) {
+                    await new Promise(r => video.addEventListener('canplay', r, { once: true }));
+                }
+
+                // Fallback if requestVideoFrameCallback not supported
+                if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) {
+                    console.log('requestVideoFrameCallback not supported, defaulting to 30fps');
+                    return 30;
+                }
+
+                return new Promise((resolve) => {
+                    const timestamps = [];
+                    const savedPlaybackRate = video.playbackRate;
+
+                    // Timeout fallback: 3 seconds max
+                    const timeout = setTimeout(() => {
+                        video.pause();
+                        video.playbackRate = savedPlaybackRate;
+                        console.log('FPS detection timeout, defaulting to 30fps');
+                        resolve(30);
+                    }, 3000);
+
+                    video.currentTime = 0;
+                    video.addEventListener('seeked', () => {
+                        const collectFrame = (now, metadata) => {
+                            timestamps.push(metadata.mediaTime);
+
+                            if (timestamps.length >= 6) {
+                                clearTimeout(timeout);
+                                video.pause();
+                                video.playbackRate = savedPlaybackRate;
+
+                                // Calculate fps from frame intervals
+                                const intervals = [];
+                                for (let i = 1; i < timestamps.length; i++) {
+                                    const diff = timestamps[i] - timestamps[i - 1];
+                                    if (diff > 0.001) intervals.push(diff);
+                                }
+
+                                let fps = 30;
+                                if (intervals.length >= 2) {
+                                    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                                    fps = Math.round(1 / avg);
+                                }
+
+                                console.log(`Detected FPS: ${fps} (from ${intervals.length} frame intervals)`);
+
+                                // Seek back to start
+                                video.currentTime = 0;
+                                video.addEventListener('seeked', () => resolve(fps), { once: true });
+                            } else {
+                                video.requestVideoFrameCallback(collectFrame);
+                            }
+                        };
+
+                        video.requestVideoFrameCallback(collectFrame);
+                        video.playbackRate = 2;
+                        video.play();
+                    }, { once: true });
+                });
+            }
+
+            calculateBitrate() {
+                // Adaptive bitrate based on resolution and fps
+                // ~0.1 bits per pixel per frame for H.264
+                const pixelsPerSecond = this.originalWidth * this.originalHeight * this.fps;
+                return Math.max(1_000_000, Math.min(20_000_000, Math.round(pixelsPerSecond * 0.1)));
             }
 
             renderVideoFrame() {
@@ -4096,7 +4169,7 @@
                     codec: 'avc1.4d0028', // Main Profile, Level 4.0
                     width: encWidth,
                     height: encHeight,
-                    bitrate: 8_000_000,
+                    bitrate: this.calculateBitrate(),
                     framerate: this.fps,
                 };
 
@@ -4343,7 +4416,7 @@
 
                 const mediaRecorder = new MediaRecorder(stream, {
                     mimeType,
-                    videoBitsPerSecond: 8000000
+                    videoBitsPerSecond: this.calculateBitrate()
                 });
 
                 const chunks = [];
