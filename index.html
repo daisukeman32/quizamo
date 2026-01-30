@@ -1569,7 +1569,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.4.0</span>
+            <span class="version">v3.4.1</span>
         </div>
         <div class="header-indicator">
             <span class="recording-indicator" id="recordingIndicator">● REC</span>
@@ -1721,10 +1721,10 @@
                 <div class="slider-group">
                     <div class="slider-label">
                         <span class="slider-name" data-i18n="intensity">INTENSITY</span>
-                        <span class="slider-value" id="mosaicSizeValue">12</span>
+                        <span class="slider-value" id="mosaicSizeValue">10</span>
                     </div>
                     <div class="slider-track">
-                        <input type="range" id="mosaicSize" min="1" max="70" value="12">
+                        <input type="range" id="mosaicSize" min="1" max="70" value="10">
                     </div>
                 </div>
 
@@ -1858,7 +1858,7 @@
                 this.cursorPreview = document.getElementById('cursorPreview');
 
                 this.brushSize = 30;
-                this.mosaicSize = 12;
+                this.mosaicSize = 10;
                 this.mosaicType = 'pixelate';
                 this.outputFolderHandle = null;
                 this.outputFormat = 'jpeg';
@@ -1892,8 +1892,8 @@
                 this.dragRenderPending = false;
                 this.regionIdCounter = 0;
                 this.regionShape = 'rect'; // 'rect' or 'ellipse'
-                this.regionWidth = 500;
-                this.regionHeight = 500;
+                this.regionWidth = 250;
+                this.regionHeight = 250;
                 this.regionRotation = 0; // degrees
                 this.isRotatingRegion = false;
                 this.rotateStart = { angle: 0, mouseAngle: 0 };
@@ -1981,6 +1981,9 @@
                     this.savedImages.clear();
                     document.getElementById('fileCount').textContent = '';
                 }
+
+                // Set default intensity per mode
+                this.setIntensity(this.isVideoMode ? 30 : 10);
 
                 this.history = [];
                 this.historyStep = -1;
@@ -3615,6 +3618,7 @@
                 this.updateRegionList();
                 this.showRegionOverlay();
                 this.saveRegionPositionForFrame();
+                this.renderVideoFrame();
 
                 this.showStatus('Region added', 'success');
             }
