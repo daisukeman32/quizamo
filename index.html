@@ -437,8 +437,8 @@
         /* Region Editor Styles */
         .region-overlay {
             position: absolute;
-            border: 2px dashed rgba(255, 255, 255, 0.8);
-            background: rgba(255, 255, 255, 0.1);
+            border: 2px dashed rgba(255, 0, 0, 0.8);
+            background: transparent;
             cursor: move;
             z-index: 100;
             display: none;
@@ -806,25 +806,132 @@
 
         .cursor-preview {
             position: fixed;
-            border: 1px solid rgba(255,255,255,0.8);
-            background: transparent;
+            border: 1px solid rgba(255,0,0,0.8);
+            background: rgba(255,0,0,0.3);
             border-radius: 50%;
             pointer-events: none;
             z-index: 9999;
             display: none;
-            transition: transform 0.05s ease-out;
+            transition: background 0.1s;
         }
 
-        .cursor-preview::after {
+        .cursor-preview.drawing {
+            background: transparent;
+        }
+
+        /* Thumbnail Strip */
+        .thumbnail-strip {
+            flex-shrink: 0;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+        }
+
+        .thumbnail-strip-header {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            font-size: 9px;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .thumbnail-progress {
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+
+        .thumbnail-saved-count {
+            color: #4caf50;
+        }
+
+        .thumbnail-scroll {
+            display: flex;
+            gap: 2px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
+            align-items: center;
+        }
+
+        .thumbnail-scroll::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .thumbnail-scroll::-webkit-scrollbar-track {
+            background: var(--secondary);
+        }
+
+        .thumbnail-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .thumbnail-item {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            position: relative;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: border-color 0.2s;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .thumbnail-item:hover {
+            border-color: var(--text-secondary);
+        }
+
+        .thumbnail-item.active {
+            border-color: var(--text-primary);
+        }
+
+        .thumbnail-item.saved::after {
             content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 2px;
-            height: 2px;
-            background: rgba(255,255,255,0.5);
-            border-radius: 50%;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(76, 175, 80, 0.25);
+            pointer-events: none;
+        }
+
+        .thumbnail-item.saved::before {
+            content: '\2713';
+            position: absolute;
+            top: 0px;
+            right: 2px;
+            color: #4caf50;
+            font-size: 11px;
+            font-weight: bold;
+            z-index: 2;
+            text-shadow: 0 0 3px rgba(0,0,0,0.8);
+        }
+
+        .thumbnail-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .thumbnail-index {
+            position: absolute;
+            bottom: 1px;
+            left: 2px;
+            font-size: 8px;
+            color: rgba(255,255,255,0.7);
+            text-shadow: 0 0 3px rgba(0,0,0,0.9);
+            z-index: 2;
         }
 
         /* Navigation */
@@ -1462,7 +1569,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.3.3</span>
+            <span class="version">v3.4.0</span>
         </div>
         <div class="header-indicator">
             <span class="recording-indicator" id="recordingIndicator">● REC</span>
@@ -1507,6 +1614,16 @@
                 </div>
             </div>
             </div>
+
+            <!-- Thumbnail Strip (Photo Mode) -->
+            <div class="thumbnail-strip photo-only" id="thumbnailStrip" style="display: none;">
+                <div class="thumbnail-strip-header">
+                    <span class="thumbnail-progress" id="thumbnailProgress">0 / 0</span>
+                    <span class="thumbnail-saved-count" id="thumbnailSavedCount"></span>
+                </div>
+                <div class="thumbnail-scroll" id="thumbnailScroll"></div>
+            </div>
+
 
             <div class="navigation">
                 <button class="nav-btn" id="prevBtn"><span data-i18n="prev">PREVIOUS</span> <span class="shortcut">[A]</span></button>
@@ -1837,6 +1954,10 @@
                 this.canvas.style.display = 'none';
                 document.getElementById('dropHint').classList.remove('hidden');
                 document.getElementById('indicator').textContent = '';
+
+                // Hide thumbnail strip on any mode switch
+                document.getElementById('thumbnailStrip').style.display = 'none';
+                document.getElementById('thumbnailScroll').innerHTML = '';
 
                 if (this.isVideoMode) {
                     // Reset video state
@@ -2621,7 +2742,7 @@
                             break;
                         case 's':
                             e.preventDefault();
-                            this.save();
+                            this.saveAndNext();
                             break;
                         case 'z':
                             e.preventDefault();
@@ -2811,6 +2932,10 @@
             }
 
             updateCursorPosition(e) {
+                if (this.isVideoMode) {
+                    this.cursorPreview.style.display = 'none';
+                    return;
+                }
                 const rect = this.canvas.getBoundingClientRect();
                 const x = e.clientX;
                 const y = e.clientY;
@@ -2832,7 +2957,8 @@
             }
 
             showCursor() {
-                if (this.images.length > 0 || (this.isVideoMode && this.video.src)) {
+                if (this.isVideoMode) return;
+                if (this.images.length > 0) {
                     this.cursorPreview.style.display = 'block';
                 }
             }
@@ -2889,6 +3015,7 @@
 
                 if (this.images.length > 0) {
                     this.currentIndex = 0;
+                    this.buildThumbnailStrip();
                     this.displayImage();
                     this.showStatus(`Loaded ${this.images.length} images`, 'success');
                 }
@@ -2909,8 +3036,9 @@
                 this.canvas.height = this.originalHeight;
 
                 // Calculate base scale to fit in view (this is zoom = 100% display)
-                const maxDisplayWidth = 900;
-                const maxDisplayHeight = 650;
+                const viewport = document.querySelector('.canvas-viewport');
+                const maxDisplayWidth = viewport.clientWidth - 2;
+                const maxDisplayHeight = viewport.clientHeight - 2;
                 const scaleX = maxDisplayWidth / this.originalWidth;
                 const scaleY = maxDisplayHeight / this.originalHeight;
                 this.baseScale = Math.min(scaleX, scaleY, 1);
@@ -2942,6 +3070,7 @@
                 this.setZoom(1);
 
                 this.updateButtonStates();
+                this.updateThumbnailHighlight();
             }
 
             updateButtonStates() {
@@ -2959,11 +3088,75 @@
                 document.getElementById('saveBtn').disabled = !hasImages;
             }
 
+            buildThumbnailStrip() {
+                const strip = document.getElementById('thumbnailStrip');
+                const scroll = document.getElementById('thumbnailScroll');
+                scroll.innerHTML = '';
+
+                if (this.images.length === 0) {
+                    strip.style.display = 'none';
+                    return;
+                }
+
+                strip.style.display = '';
+
+                for (let i = 0; i < this.images.length; i++) {
+                    const item = document.createElement('div');
+                    item.className = 'thumbnail-item';
+                    item.dataset.index = i;
+
+                    const img = document.createElement('img');
+                    img.src = this.images[i].url;
+                    img.alt = this.images[i].name;
+                    item.appendChild(img);
+
+                    item.addEventListener('click', () => {
+                        this.currentIndex = i;
+                        this.displayImage();
+                    });
+
+                    scroll.appendChild(item);
+                }
+
+                this.updateThumbnailHighlight();
+            }
+
+            updateThumbnailHighlight() {
+                const strip = document.getElementById('thumbnailStrip');
+                if (strip.style.display === 'none') return;
+
+                const items = document.querySelectorAll('.thumbnail-item');
+                items.forEach((item, i) => {
+                    item.classList.toggle('active', i === this.currentIndex);
+                    item.classList.toggle('saved', this.savedImages.has(i));
+                });
+
+                // Scroll active thumbnail into view
+                const activeItem = items[this.currentIndex];
+                if (activeItem) {
+                    activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+
+                // Update progress text
+                const progress = document.getElementById('thumbnailProgress');
+                progress.textContent = `${this.currentIndex + 1} / ${this.images.length}`;
+
+                const savedCount = document.getElementById('thumbnailSavedCount');
+                const saved = this.savedImages.size;
+                const remaining = this.images.length - saved;
+                if (saved > 0) {
+                    savedCount.textContent = `${saved} SAVED / ${remaining} LEFT`;
+                } else {
+                    savedCount.textContent = `${remaining} LEFT`;
+                }
+            }
+
             startDrawing(e) {
                 if (this.images.length === 0 && !(this.isVideoMode && this.video.src)) return;
                 // Disable brush drawing in video mode - use regions only
                 if (this.isVideoMode) return;
                 this.isDrawing = true;
+                document.getElementById('cursorPreview').classList.add('drawing');
                 this.draw(e);
             }
 
@@ -2986,6 +3179,7 @@
             stopDrawing() {
                 if (this.isDrawing) {
                     this.isDrawing = false;
+                    document.getElementById('cursorPreview').classList.remove('drawing');
                     this.saveHistory();
 
                     // In video mode, automatically save frame edit
@@ -3320,6 +3514,7 @@
                             const indicator = document.getElementById('indicator');
                             indicator.textContent = `${this.currentIndex + 1} / ${this.images.length} SAVED`;
                             indicator.className = 'indicator saved';
+                            this.updateThumbnailHighlight();
                             this.showStatus(`Saved: ${fileName}`, 'success');
                             return true;
                         } catch (err) {
@@ -3346,6 +3541,7 @@
                     const indicator = document.getElementById('indicator');
                     indicator.textContent = `${this.currentIndex + 1} / ${this.images.length} SAVED`;
                     indicator.className = 'indicator saved';
+                    this.updateThumbnailHighlight();
                     this.showStatus('Image downloaded', 'success');
 
                     return true;
