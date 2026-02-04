@@ -804,6 +804,10 @@
             z-index: 1;
         }
 
+        body.video-mode canvas {
+            cursor: default;
+        }
+
         .cursor-preview {
             position: fixed;
             border: 1px solid rgba(255,0,0,0.8);
@@ -1569,7 +1573,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.4.1</span>
+            <span class="version">v3.4.3</span>
         </div>
         <div class="header-indicator">
             <span class="recording-indicator" id="recordingIndicator">● REC</span>
@@ -1857,6 +1861,16 @@
                 this.savedImages = new Set();
                 this.cursorPreview = document.getElementById('cursorPreview');
 
+                // Cache DOM references for render loop performance
+                this._timelineProgress = document.getElementById('timelineProgress');
+                this._timelineHandle = document.getElementById('timelineHandle');
+                this._currentTimeEl = document.getElementById('currentTime');
+                this._currentFrameEl = document.getElementById('currentFrame');
+                this._indicatorEl = document.getElementById('indicator');
+                this._overlayEl = document.getElementById('regionOverlay');
+                this._dropZoneEl = document.getElementById('dropZone');
+                this._layoutCache = null; // cached getBoundingClientRect results
+
                 this.brushSize = 30;
                 this.mosaicSize = 10;
                 this.mosaicType = 'pixelate';
@@ -1890,6 +1904,8 @@
                 this.isDraggingRegion = false;
                 this.dragOffset = { x: 0, y: 0 };
                 this.dragRenderPending = false;
+                this.isSeeking = false;
+                this._lastRecordedFrame = -1;
                 this.regionIdCounter = 0;
                 this.regionShape = 'rect'; // 'rect' or 'ellipse'
                 this.regionWidth = 250;
@@ -1950,6 +1966,7 @@
             }
 
             resetForModeSwitch() {
+                this._invalidateLayoutCache();
                 // Hide canvas and show drop hint
                 this.canvas.style.display = 'none';
                 document.getElementById('dropHint').classList.remove('hidden');
@@ -2073,11 +2090,10 @@
                         this.startResizing(e);
                     } else if (e.target.classList.contains('rotate-handle')) {
                         this.startRotating(e);
-                    } else if (e.target.classList.contains('move-handle')) {
-                        // Only move-handle can initiate dragging
+                    } else {
+                        // Anywhere on overlay initiates drag
                         this.startDraggingRegion(e);
                     }
-                    // Clicking elsewhere on overlay does nothing (no drag from border)
                 });
 
                 // Prevent clicks on region overlay from triggering file input
@@ -2156,57 +2172,32 @@
             }
 
             dragRegion(e) {
-                // Use cached values for performance
                 if (!this.cachedWrapperRect || !this.cachedOverlay) return;
 
-                // Delta-based movement: mouse movement = region movement (1:1)
                 const deltaX = e.clientX - this.dragStartMouseX;
                 const deltaY = e.clientY - this.dragStartMouseY;
-
-                // No constraints - allow region to extend beyond canvas edges
                 let newX = this.dragStartOverlayX + deltaX;
                 let newY = this.dragStartOverlayY + deltaY;
 
-                // Update overlay position
                 this.cachedOverlay.style.left = newX + 'px';
                 this.cachedOverlay.style.top = newY + 'px';
 
-                // Update region position
                 const region = this.regions[this.selectedRegionIndex];
                 region.x = (newX - this.cachedCanvasLeft) * this.cachedScaleX;
                 region.y = (newY - this.cachedCanvasTop) * this.cachedScaleY;
 
-                // 動画モード時：リアルタイムでモザイクを更新
-                if (this.isVideoMode && this.video.src) {
-                    this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
-                    this.saveRegionPositionForFrameImmediate();
+                // During playback, the playback loop handles rendering - skip extra render
+                if (this.isPlaying) return;
 
-                    if (!this.dragRenderPending) {
-                        this.dragRenderPending = true;
-                        requestAnimationFrame(() => {
-                            this.renderVideoFrame();
-                            this.dragRenderPending = false;
-                        });
-                    }
+                if (!this.dragRenderPending) {
+                    this.dragRenderPending = true;
+                    requestAnimationFrame(() => {
+                        this.renderVideoFrameLight();
+                        this.dragRenderPending = false;
+                    });
                 }
             }
 
-            // 即座に保存（履歴なし版 - ドラッグ中の連続保存用）
-            saveRegionPositionForFrameImmediate() {
-                const frameNum = this.currentFrameNumber;
-                const positions = this.regions.map(r => ({
-                    id: r.id,
-                    x: r.x,
-                    y: r.y,
-                    width: r.width,
-                    height: r.height,
-                    shape: r.shape,
-                    type: r.type,
-                    intensity: r.intensity,
-                    rotation: r.rotation || 0
-                }));
-                this.regionPositions.set(frameNum, positions);
-            }
 
             resizeRegion(e) {
                 if (!this.cachedCanvasRect) return;
@@ -2220,18 +2211,14 @@
 
                 this.updateRegionOverlaySize();
 
-                // 動画モード時：リアルタイムでモザイクを更新
-                if (this.isVideoMode && this.video.src) {
-                    this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
-                    this.saveRegionPositionForFrameImmediate();
+                if (this.isPlaying) return;
 
-                    if (!this.dragRenderPending) {
-                        this.dragRenderPending = true;
-                        requestAnimationFrame(() => {
-                            this.renderVideoFrame();
-                            this.dragRenderPending = false;
-                        });
-                    }
+                if (!this.dragRenderPending) {
+                    this.dragRenderPending = true;
+                    requestAnimationFrame(() => {
+                        this.renderVideoFrameLight();
+                        this.dragRenderPending = false;
+                    });
                 }
             }
 
@@ -2269,31 +2256,23 @@
 
                 const region = this.regions[this.selectedRegionIndex];
 
-                // Calculate current mouse angle using cached center
                 const currentAngle = Math.atan2(
                     e.clientY - this.cachedRotateCenterY,
                     e.clientX - this.cachedRotateCenterX
                 ) * (180 / Math.PI);
                 const deltaAngle = currentAngle - this.rotateStart.mouseAngle;
 
-                // Update region rotation
                 region.rotation = this.rotateStart.angle + deltaAngle;
-
-                // Update overlay display
                 this.cachedRotateOverlay.style.transform = `rotate(${region.rotation || 0}deg)`;
 
-                // 動画モード時：リアルタイムでモザイクを更新
-                if (this.isVideoMode && this.video.src) {
-                    this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
-                    this.saveRegionPositionForFrameImmediate();
+                if (this.isPlaying) return;
 
-                    if (!this.dragRenderPending) {
-                        this.dragRenderPending = true;
-                        requestAnimationFrame(() => {
-                            this.renderVideoFrame();
-                            this.dragRenderPending = false;
-                        });
-                    }
+                if (!this.dragRenderPending) {
+                    this.dragRenderPending = true;
+                    requestAnimationFrame(() => {
+                        this.renderVideoFrameLight();
+                        this.dragRenderPending = false;
+                    });
                 }
             }
 
@@ -2321,8 +2300,8 @@
                 // Hide recording indicator
                 document.getElementById('recordingIndicator').classList.remove('active');
 
-                // Render video frame after operation completes (not during)
-                if (wasOperating && this.isVideoMode && this.video.src) {
+                // Render video frame after operation completes (skip during playback - loop handles it)
+                if (wasOperating && this.isVideoMode && this.video.src && !this.isPlaying) {
                     this.renderVideoFrame();
                 }
             }
@@ -3037,6 +3016,7 @@
                 // Canvas uses original image size for full quality
                 this.canvas.width = this.originalWidth;
                 this.canvas.height = this.originalHeight;
+                this._invalidateLayoutCache();
 
                 // Calculate base scale to fit in view (this is zoom = 100% display)
                 const viewport = document.querySelector('.canvas-viewport');
@@ -3717,34 +3697,43 @@
                 if (this.selectedRegionIndex < 0) return;
 
                 const region = this.regions[this.selectedRegionIndex];
-                const overlay = document.getElementById('regionOverlay');
-                const wrapper = document.getElementById('dropZone');
-                const canvasRect = this.canvas.getBoundingClientRect();
-                const wrapperRect = wrapper.getBoundingClientRect();
+                let lc = this._layoutCache;
+                if (!lc) {
+                    // Compute and cache layout
+                    const canvasRect = this.canvas.getBoundingClientRect();
+                    const wrapperRect = this._dropZoneEl.getBoundingClientRect();
+                    lc = {
+                        canvasLeft: canvasRect.left - wrapperRect.left + this._dropZoneEl.scrollLeft,
+                        canvasTop: canvasRect.top - wrapperRect.top + this._dropZoneEl.scrollTop,
+                        scaleX: canvasRect.width / this.canvas.width,
+                        scaleY: canvasRect.height / this.canvas.height
+                    };
+                    this._layoutCache = lc;
+                }
 
-                const canvasLeft = canvasRect.left - wrapperRect.left + wrapper.scrollLeft;
-                const canvasTop = canvasRect.top - wrapperRect.top + wrapper.scrollTop;
-
-                // Convert canvas coordinates to screen position
-                const scaleX = canvasRect.width / this.canvas.width;
-                const scaleY = canvasRect.height / this.canvas.height;
-
-                overlay.style.left = (canvasLeft + region.x * scaleX) + 'px';
-                overlay.style.top = (canvasTop + region.y * scaleY) + 'px';
+                this._overlayEl.style.left = (lc.canvasLeft + region.x * lc.scaleX) + 'px';
+                this._overlayEl.style.top = (lc.canvasTop + region.y * lc.scaleY) + 'px';
             }
 
             updateRegionOverlaySize() {
                 if (this.selectedRegionIndex < 0) return;
 
                 const region = this.regions[this.selectedRegionIndex];
-                const overlay = document.getElementById('regionOverlay');
-                const canvasRect = this.canvas.getBoundingClientRect();
+                let lc = this._layoutCache;
+                if (!lc) {
+                    const canvasRect = this.canvas.getBoundingClientRect();
+                    const wrapperRect = this._dropZoneEl.getBoundingClientRect();
+                    lc = {
+                        canvasLeft: canvasRect.left - wrapperRect.left + this._dropZoneEl.scrollLeft,
+                        canvasTop: canvasRect.top - wrapperRect.top + this._dropZoneEl.scrollTop,
+                        scaleX: canvasRect.width / this.canvas.width,
+                        scaleY: canvasRect.height / this.canvas.height
+                    };
+                    this._layoutCache = lc;
+                }
 
-                const scaleX = canvasRect.width / this.canvas.width;
-                const scaleY = canvasRect.height / this.canvas.height;
-
-                overlay.style.width = (region.width * scaleX) + 'px';
-                overlay.style.height = (region.height * scaleY) + 'px';
+                this._overlayEl.style.width = (region.width * lc.scaleX) + 'px';
+                this._overlayEl.style.height = (region.height * lc.scaleY) + 'px';
             }
 
             updateRegionOverlayShape() {
@@ -3764,7 +3753,7 @@
             }
 
             saveRegionPositionForFrame() {
-                const frameNum = Math.floor(this.video.currentTime * this.fps);
+                const frameNum = Math.round(this.video.currentTime * this.fps);
 
                 // Save to history for undo
                 const prevPositions = this.regionPositions.get(frameNum);
@@ -3804,7 +3793,7 @@
                 this.regionPositions.set(lastState.frameNumber, lastState.positions);
 
                 // If current frame matches, restore positions
-                const currentFrame = Math.floor(this.video.currentTime * this.fps);
+                const currentFrame = Math.round(this.video.currentTime * this.fps);
                 if (currentFrame === lastState.frameNumber) {
                     this.restoreRegionPositions(lastState.positions);
                 }
@@ -3858,6 +3847,7 @@
                 // Setup canvas
                 this.canvas.width = this.originalWidth;
                 this.canvas.height = this.originalHeight;
+                this._invalidateLayoutCache();
 
                 // Calculate base scale to fit in view
                 const maxDisplayWidth = 900;
@@ -3980,32 +3970,57 @@
                 return Math.max(1_000_000, Math.min(20_000_000, Math.round(pixelsPerSecond * 0.2)));
             }
 
+            // Lightweight render: video frame + mosaic only (no DOM updates)
+            renderVideoFrameLight() {
+                if (!this.video.src) return;
+                this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
+                this.applyRegionMosaics();
+            }
+
             renderVideoFrame() {
                 if (!this.video.src) return;
 
-                this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
+                this.currentFrameNumber = Math.round(this.video.currentTime * this.fps);
 
-                // Draw video frame
+                const isDragging = this.isDraggingRegion || this.isResizingRegion || this.isRotatingRegion;
+
+                if (isDragging) {
+                    // Real-time recording: auto-save position during drag+playback
+                    if (this.isPlaying && this.currentFrameNumber !== this._lastRecordedFrame) {
+                        this._lastRecordedFrame = this.currentFrameNumber;
+                        const positions = this.regions.map(r => ({
+                            id: r.id, x: r.x, y: r.y, width: r.width, height: r.height,
+                            shape: r.shape, type: r.type, intensity: r.intensity, rotation: r.rotation || 0
+                        }));
+                        this.regionPositions.set(this.currentFrameNumber, positions);
+                    }
+                } else {
+                    this.loadRegionPositionsForFrame();
+                }
+
+                // Draw video frame + mosaic
                 this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
-
-                // Apply mosaic for all regions
                 this.applyRegionMosaics();
 
-                // Update timeline
-                const progress = (this.video.currentTime / this.videoDuration) * 100;
-                document.getElementById('timelineProgress').style.width = progress + '%';
-                document.getElementById('timelineHandle').style.left = progress + '%';
-                document.getElementById('currentTime').textContent = this.formatTime(this.video.currentTime);
-                document.getElementById('currentFrame').textContent = this.currentFrameNumber;
+                // UI updates - skip heavy DOM work during drag+playback for performance
+                if (isDragging && this.isPlaying) {
+                    // Minimal update only
+                    const progress = (this.video.currentTime / this.videoDuration) * 100;
+                    this._timelineProgress.style.width = progress + '%';
+                    this._timelineHandle.style.left = progress + '%';
+                } else {
+                    const progress = (this.video.currentTime / this.videoDuration) * 100;
+                    this._timelineProgress.style.width = progress + '%';
+                    this._timelineHandle.style.left = progress + '%';
+                    this._currentTimeEl.textContent = this.formatTime(this.video.currentTime);
+                    this._currentFrameEl.textContent = this.currentFrameNumber;
 
-                // Update indicator
-                const indicator = document.getElementById('indicator');
-                const hasRegions = this.regions.length > 0;
-                indicator.textContent = `Frame ${this.currentFrameNumber + 1} / ${this.totalFrames}`;
-                indicator.className = hasRegions ? 'indicator saved' : 'indicator';
-
-                // Load saved positions for this frame if they exist
-                this.loadRegionPositionsForFrame();
+                    const hasSavedPositions = this.regionPositions.has(this.currentFrameNumber);
+                    const savedCount = this.regionPositions.size;
+                    this._indicatorEl.textContent = `Frame ${this.currentFrameNumber + 1} / ${this.totalFrames}` +
+                        (savedCount > 0 ? ` [REC: ${savedCount}]` : '');
+                    this._indicatorEl.className = hasSavedPositions ? 'indicator saved' : 'indicator';
+                }
             }
 
             loadRegionPositionsForFrame() {
@@ -4063,82 +4078,56 @@
             applyRegionMosaics() {
                 if (this.regions.length === 0) return;
 
-                const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                const data = imageData.data;
-
-                for (const region of this.regions) {
-                    this.applyMosaicToRegion(data, region, imageData.width, imageData.height);
+                if (!this._mosaicTemp) {
+                    this._mosaicTemp = document.createElement('canvas');
+                    this._mosaicTempCtx = this._mosaicTemp.getContext('2d');
                 }
 
-                this.ctx.putImageData(imageData, 0, 0);
-            }
+                for (const region of this.regions) {
+                    const w = Math.floor(region.width);
+                    const h = Math.floor(region.height);
+                    if (w <= 0 || h <= 0) continue;
 
-            applyMosaicToRegion(data, region, width, height) {
-                const x = Math.floor(region.x);
-                const y = Math.floor(region.y);
-                const w = Math.floor(region.width);
-                const h = Math.floor(region.height);
-                const rotation = (region.rotation || 0) * Math.PI / 180; // Convert to radians
+                    const baseResolution = 1920;
+                    const imageSize = Math.max(this.canvas.width, this.canvas.height);
+                    const scaleFactor = imageSize / baseResolution;
+                    const blockSize = Math.max(2, Math.round(region.intensity * scaleFactor));
 
-                // Resolution-based scaling
-                const baseResolution = 1920;
-                const imageSize = Math.max(this.canvas.width, this.canvas.height);
-                const scaleFactor = imageSize / baseResolution;
-                const blockSize = Math.max(1, Math.round(region.intensity * scaleFactor));
+                    const smallW = Math.max(1, Math.ceil(w / blockSize));
+                    const smallH = Math.max(1, Math.ceil(h / blockSize));
 
-                const shape = region.shape; // 'rect' or 'ellipse'
-                const centerX = x + w / 2;
-                const centerY = y + h / 2;
-                const radiusX = w / 2;
-                const radiusY = h / 2;
+                    const x = Math.floor(region.x);
+                    const y = Math.floor(region.y);
+                    const rotation = (region.rotation || 0) * Math.PI / 180;
+                    const cx = x + w / 2;
+                    const cy = y + h / 2;
 
-                // Calculate expanded bounding box for rotation
-                const cos = Math.abs(Math.cos(rotation));
-                const sin = Math.abs(Math.sin(rotation));
-                const expandedW = Math.ceil(w * cos + h * sin);
-                const expandedH = Math.ceil(w * sin + h * cos);
-                const startX = Math.max(0, Math.floor(centerX - expandedW / 2));
-                const startY = Math.max(0, Math.floor(centerY - expandedH / 2));
-                const endX = Math.min(width, Math.ceil(centerX + expandedW / 2));
-                const endY = Math.min(height, Math.ceil(centerY + expandedH / 2));
-
-                const cosR = Math.cos(-rotation);
-                const sinR = Math.sin(-rotation);
-                const blockCache = new Map();
-
-                for (let py = startY; py < endY; py++) {
-                    for (let px = startX; px < endX; px++) {
-                        // Transform pixel to local coordinate system (rotate around center)
-                        const relX = px - centerX;
-                        const relY = py - centerY;
-                        const localX = relX * cosR - relY * sinR;
-                        const localY = relX * sinR + relY * cosR;
-
-                        // Normalize to shape dimensions
-                        const normX = localX / radiusX;
-                        const normY = localY / radiusY;
-
-                        // Check if point is inside region based on shape
-                        let inside = false;
-                        if (shape === 'ellipse') {
-                            // Ellipse: check if inside ellipse equation
-                            inside = (normX * normX + normY * normY) <= 1;
-                        } else {
-                            // Rectangle: check if inside rectangle
-                            inside = Math.abs(normX) <= 1 && Math.abs(normY) <= 1;
-                        }
-
-                        if (!inside) continue;
-
-                        // Apply mosaic effect
-                        if (region.type === 'pixelate') {
-                            this.pixelatePixelFast(data, px, py, width, blockSize, blockCache);
-                        } else if (region.type === 'blur') {
-                            this.blurPixel(data, px, py, width, height);
-                        } else if (region.type === 'mosaic') {
-                            this.mosaicPixelFast(data, px, py, width, blockSize, blockCache);
-                        }
+                    // Downscale region area to create pixelation
+                    // Only resize temp canvas when dimensions change (avoids expensive context reset)
+                    if (this._mosaicTemp.width !== smallW || this._mosaicTemp.height !== smallH) {
+                        this._mosaicTemp.width = smallW;
+                        this._mosaicTemp.height = smallH;
                     }
+                    this._mosaicTempCtx.drawImage(this.canvas, x, y, w, h, 0, 0, smallW, smallH);
+
+                    // Draw back pixelated with rotation + shape clip
+                    this.ctx.save();
+                    this.ctx.translate(cx, cy);
+                    this.ctx.rotate(rotation);
+
+                    this.ctx.beginPath();
+                    if (region.shape === 'ellipse') {
+                        this.ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
+                    } else {
+                        this.ctx.rect(-w / 2, -h / 2, w, h);
+                    }
+                    this.ctx.clip();
+
+                    this.ctx.imageSmoothingEnabled = false;
+                    this.ctx.drawImage(this._mosaicTemp, 0, 0, smallW, smallH, -w / 2, -h / 2, w, h);
+                    this.ctx.imageSmoothingEnabled = true;
+
+                    this.ctx.restore();
                 }
             }
 
@@ -4154,6 +4143,11 @@
 
                 const recIndicator = document.getElementById('recordingIndicator');
 
+                // Always reset drag flags before playback state change
+                this.isDraggingRegion = false;
+                this.isResizingRegion = false;
+                this.isRotatingRegion = false;
+
                 if (this.isPlaying) {
                     this.stopPlaybackLoop();
                     this.video.pause();
@@ -4161,6 +4155,10 @@
                     document.getElementById('playPauseBtn').textContent = '▶';
                     recIndicator.classList.remove('active');
                 } else {
+                    // Save current frame before starting playback
+                    if (this.regions.length > 0) {
+                        this.saveRegionPositionForFrame();
+                    }
                     this.video.play();
                     this.isPlaying = true;
                     document.getElementById('playPauseBtn').textContent = '⏸';
@@ -4172,27 +4170,33 @@
                 }
             }
 
-            startPlaybackLoop() {
-                let lastFrameNumber = -1;
+            _cachePlaybackLayout() {
+                const canvasRect = this.canvas.getBoundingClientRect();
+                const wrapperRect = this._dropZoneEl.getBoundingClientRect();
+                this._layoutCache = {
+                    canvasLeft: canvasRect.left - wrapperRect.left + this._dropZoneEl.scrollLeft,
+                    canvasTop: canvasRect.top - wrapperRect.top + this._dropZoneEl.scrollTop,
+                    scaleX: canvasRect.width / this.canvas.width,
+                    scaleY: canvasRect.height / this.canvas.height
+                };
+            }
 
+            _invalidateLayoutCache() {
+                this._layoutCache = null;
+            }
+
+            startPlaybackLoop() {
+                this._cachePlaybackLayout();
+                this._lastPlaybackTime = -1;
                 const loop = () => {
                     if (!this.isPlaying) return;
-
-                    const newFrameNumber = Math.floor(this.video.currentTime * this.fps);
-
-                    // フレームが変わったら位置を読み込み＆オーバーレイ更新
-                    if (newFrameNumber !== lastFrameNumber) {
-                        lastFrameNumber = newFrameNumber;
-                        this.currentFrameNumber = newFrameNumber;
-
-                        // ドラッグ/リサイズ中でなければ保存済みの位置を読み込む
-                        // ドラッグ/リサイズ中は手動で位置を決めているので上書きしない
-                        if (!this.isDraggingRegion && !this.isResizingRegion) {
-                            this.loadRegionPositionsForFrame();
-                        }
+                    const isDragging = this.isDraggingRegion || this.isResizingRegion || this.isRotatingRegion;
+                    const timeChanged = this.video.currentTime !== this._lastPlaybackTime;
+                    // Always render when dragging (mosaic position changes), skip redundant renders otherwise
+                    if (isDragging || timeChanged) {
+                        this._lastPlaybackTime = this.video.currentTime;
+                        this.renderVideoFrame();
                     }
-
-                    this.renderVideoFrame();
                     this.animationFrameId = requestAnimationFrame(loop);
                 };
                 loop();
@@ -4206,21 +4210,22 @@
             }
 
             seekFrames(delta) {
-                if (!this.video.src) return;
+                if (!this.video.src || this.isSeeking) return;
+                // Reset drag flags
+                this.isDraggingRegion = false;
+                this.isResizingRegion = false;
+                this.isRotatingRegion = false;
                 if (this.regions.length === 0) {
-                    // No regions, just seek normally
                     this.seekFramesSimple(delta);
                     return;
                 }
 
-                const currentFrame = Math.floor(this.video.currentTime * this.fps);
+                const currentFrame = Math.round(this.video.currentTime * this.fps);
 
                 if (delta < 0) {
-                    // Going backwards: delete current frame's position, then seek back
                     this.deleteRegionPositionForFrame(currentFrame);
                     this.seekFramesSimple(delta);
                 } else {
-                    // Going forwards: save current position, show REC flash, then seek forward
                     this.saveRegionPositionForFrame();
                     this.flashRecIndicator();
                     this.seekFramesSimple(delta);
@@ -4228,17 +4233,15 @@
             }
 
             seekFramesSimple(delta) {
+                this.isSeeking = true;
                 const newTime = Math.max(0, Math.min(this.videoDuration,
                     this.video.currentTime + (delta / this.fps)));
                 this.video.currentTime = newTime;
 
-                // Wait for seek to complete then render frame and load positions
-                this.video.onseeked = () => {
-                    this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
-                    this.loadRegionPositionsForFrame();
+                this.video.addEventListener('seeked', () => {
                     this.renderVideoFrame();
-                    this.video.onseeked = null;
-                };
+                    this.isSeeking = false;
+                }, { once: true });
             }
 
             deleteRegionPositionForFrame(frameNum) {
@@ -4277,6 +4280,11 @@
 
             seekToPosition(e) {
                 if (!this.video.src) return;
+
+                // Save current frame before seeking via timeline
+                if (this.regions.length > 0) {
+                    this.saveRegionPositionForFrame();
+                }
 
                 const timeline = document.getElementById('timeline');
                 const rect = timeline.getBoundingClientRect();
@@ -4657,7 +4665,7 @@
                             return;
                         }
 
-                        this.currentFrameNumber = Math.floor(this.video.currentTime * this.fps);
+                        this.currentFrameNumber = Math.round(this.video.currentTime * this.fps);
                         this.loadRegionPositionsForFrame();
                         this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
                         this.applyRegionMosaics();
