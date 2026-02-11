@@ -1573,7 +1573,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.5</span>
+            <span class="version">v3.6</span>
         </div>
         <div class="header-indicator">
             <span class="recording-indicator" id="recordingIndicator">● REC</span>
@@ -4102,15 +4102,30 @@
                     const cx = x + w / 2;
                     const cy = y + h / 2;
 
-                    // Downscale region area to create pixelation
-                    // Only resize temp canvas when dimensions change (avoids expensive context reset)
-                    if (this._mosaicTemp.width !== smallW || this._mosaicTemp.height !== smallH) {
-                        this._mosaicTemp.width = smallW;
-                        this._mosaicTemp.height = smallH;
-                    }
-                    this._mosaicTempCtx.drawImage(this.canvas, x, y, w, h, 0, 0, smallW, smallH);
+                    // Calculate AABB (axis-aligned bounding box) of the rotated region
+                    const cosR = Math.abs(Math.cos(rotation));
+                    const sinR = Math.abs(Math.sin(rotation));
+                    const aabbW = Math.ceil(w * cosR + h * sinR);
+                    const aabbH = Math.ceil(h * cosR + w * sinR);
 
-                    // Draw back pixelated with rotation + shape clip
+                    // AABB origin clamped to canvas bounds
+                    const aabbX = Math.max(0, Math.floor(cx - aabbW / 2));
+                    const aabbY = Math.max(0, Math.floor(cy - aabbH / 2));
+                    const aabbClampedW = Math.min(aabbW, this.canvas.width - aabbX);
+                    const aabbClampedH = Math.min(aabbH, this.canvas.height - aabbY);
+                    if (aabbClampedW <= 0 || aabbClampedH <= 0) continue;
+
+                    // Pixelate the AABB area (blocks stay axis-aligned)
+                    const aabbSmallW = Math.max(1, Math.ceil(aabbClampedW / blockSize));
+                    const aabbSmallH = Math.max(1, Math.ceil(aabbClampedH / blockSize));
+
+                    if (this._mosaicTemp.width !== aabbSmallW || this._mosaicTemp.height !== aabbSmallH) {
+                        this._mosaicTemp.width = aabbSmallW;
+                        this._mosaicTemp.height = aabbSmallH;
+                    }
+                    this._mosaicTempCtx.drawImage(this.canvas, aabbX, aabbY, aabbClampedW, aabbClampedH, 0, 0, aabbSmallW, aabbSmallH);
+
+                    // Clip to rotated region shape, but draw mosaic axis-aligned
                     this.ctx.save();
                     this.ctx.translate(cx, cy);
                     this.ctx.rotate(rotation);
@@ -4123,8 +4138,11 @@
                     }
                     this.ctx.clip();
 
+                    // Counter-rotate before drawing so mosaic blocks stay horizontal/vertical
+                    this.ctx.rotate(-rotation);
+
                     this.ctx.imageSmoothingEnabled = false;
-                    this.ctx.drawImage(this._mosaicTemp, 0, 0, smallW, smallH, -w / 2, -h / 2, w, h);
+                    this.ctx.drawImage(this._mosaicTemp, 0, 0, aabbSmallW, aabbSmallH, aabbX - cx, aabbY - cy, aabbClampedW, aabbClampedH);
                     this.ctx.imageSmoothingEnabled = true;
 
                     this.ctx.restore();
