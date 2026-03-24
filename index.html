@@ -246,6 +246,25 @@
             background: #00aa55;
         }
 
+        body.day-mode .header {
+            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(245,245,245,0.95) 100%);
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        body.day-mode .video-list-item.active {
+            border-color: #000000;
+        }
+
+        body.day-mode .video-list-export-btn {
+            background: #000000;
+            color: #ffffff;
+            border-color: #000000;
+        }
+
+        body.day-mode .video-done-btn {
+            border-color: #cccccc;
+        }
+
         /* Video Mode Styles */
         .video-controls {
             display: none;
@@ -280,13 +299,71 @@
             display: block;
         }
 
-        /* Make export button full width in video mode */
-        body.video-mode .section-actions .action-grid {
+        .video-toolbar {
             display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
         }
 
-        body.video-mode .section-actions .export-video-btn {
-            width: 100%;
+        .countdown-toggle-big {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .countdown-toggle-big .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .countdown-toggle-big .toggle-switch::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        .countdown-toggle-big .toggle-switch.on::before {
+            transform: translateX(26px);
+        }
+
+        .video-done-btn {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 20px;
+            border: 2px solid var(--border);
+            background: transparent;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-family: inherit;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .video-done-btn:hover {
+            border-color: #00cc66;
+            color: #00cc66;
+        }
+
+        .video-done-btn.is-done {
+            border-color: #ff3b30;
+            background: transparent;
+            color: #ff3b30;
+        }
+
+        .video-done-btn.is-done:hover {
+            background: rgba(255, 59, 48, 0.1);
         }
 
         .video-playback {
@@ -296,21 +373,37 @@
         }
 
         .play-btn {
-            width: 40px;
+            min-width: 70px;
             height: 40px;
+            padding: 0 12px;
             background: var(--primary);
             border: 1px solid var(--border);
             color: var(--text-primary);
-            font-size: 16px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 6px;
             transition: all 0.2s ease;
+        }
+
+        .play-btn-icon {
+            font-size: 14px;
+        }
+
+        .play-btn-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
         }
 
         .play-btn:hover {
             background: var(--hover);
+        }
+
+        .play-btn.recording {
+            border-color: #ff3b30;
+            background: rgba(255, 59, 48, 0.1);
         }
 
         .timeline-container {
@@ -379,11 +472,12 @@
 
         .frame-nav {
             display: flex;
-            gap: 5px;
+            gap: 4px;
+            align-items: stretch;
         }
 
         .frame-btn {
-            padding: 8px 12px;
+            padding: 8px 10px;
             background: var(--primary);
             border: 1px solid var(--border);
             color: var(--text-primary);
@@ -392,6 +486,15 @@
             letter-spacing: 1px;
             cursor: pointer;
             transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .frame-btn-lg {
+            flex: 3;
+        }
+
+        .frame-btn-sm {
+            flex: 2;
         }
 
         .frame-btn:hover {
@@ -399,8 +502,9 @@
         }
 
         .frame-btn .shortcut {
-            opacity: 0.5;
-            margin-left: 4px;
+            opacity: 0.4;
+            margin-left: 3px;
+            font-weight: 400;
         }
 
         /* Video mode specific input section */
@@ -408,21 +512,22 @@
             display: none;
         }
 
-        body.video-mode .video-input {
-            display: block;
-        }
-
         .video-input {
             display: none;
         }
 
-        /* Export button for video */
-        .export-video-btn {
+        /* Hide input section and actions section entirely in video mode */
+        body.video-mode .section-input-wrap {
             display: none;
         }
 
-        body.video-mode .export-video-btn {
-            display: flex;
+        body.video-mode .section-actions {
+            display: none;
+        }
+
+        /* Export button for video (single export in actions) */
+        .export-video-btn {
+            display: none;
         }
 
         body.video-mode .photo-save-btn {
@@ -447,6 +552,11 @@
 
         .region-overlay.active {
             display: block;
+        }
+
+        .region-overlay.dragging {
+            border: 3px solid rgba(255, 0, 0, 1);
+            box-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
         }
 
         .region-overlay.ellipse {
@@ -559,6 +669,208 @@
         }
 
         /* Region Settings Panel */
+        /* Video List Section */
+        .video-list-section {
+            display: none;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            padding: 10px;
+            margin-bottom: 8px;
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+        }
+
+        body.video-mode .video-list-section {
+            display: flex;
+        }
+
+        .video-list-section .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .video-list-count {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .video-list-scroll {
+            flex: 1;
+            overflow-y: auto;
+            margin: 8px 0;
+            min-height: 40px;
+        }
+
+        .video-list-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .video-list-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .video-list-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: border-color 0.15s;
+        }
+
+        .video-list-item:hover {
+            background: var(--hover);
+        }
+
+        .video-list-item.active {
+            border-color: var(--accent);
+        }
+
+        .video-list-thumb {
+            width: 48px;
+            height: 27px;
+            background: var(--primary);
+            border: 1px solid var(--border);
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .video-list-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .video-list-name {
+            font-size: 10px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .video-list-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-dot.editing { background: #ff9500; }
+        .status-dot.done { background: #00cc66; }
+        .status-dot.exported { background: #007aff; }
+
+        .status-label {
+            font-size: 9px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .video-list-done-btn {
+            font-size: 9px;
+            padding: 2px 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: inherit;
+            letter-spacing: 0.5px;
+            transition: all 0.15s;
+        }
+
+        .video-list-done-btn:hover {
+            border-color: #00cc66;
+            color: #00cc66;
+        }
+
+        .video-list-done-btn.is-done {
+            border-color: #00cc66;
+            color: #00cc66;
+        }
+
+        .video-list-done-btn.is-done:hover {
+            border-color: #ff3b30;
+            color: #ff3b30;
+        }
+
+        .video-list-delete-btn {
+            font-size: 12px;
+            width: 18px;
+            height: 18px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .video-list-item:hover .video-list-delete-btn {
+            opacity: 1;
+        }
+
+        .video-list-delete-btn:hover {
+            color: #ff3b30;
+        }
+
+        .video-list-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .video-list-add-btn,
+        .video-list-export-btn {
+            flex: 1;
+            font-size: 10px;
+            padding: 6px 0;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            letter-spacing: 1px;
+            transition: all 0.15s;
+        }
+
+        .video-list-add-btn:hover {
+            border-color: var(--text-primary);
+        }
+
+        .video-list-export-btn {
+            background: var(--accent);
+            color: var(--primary);
+            border-color: var(--accent);
+        }
+
+        .video-list-export-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .video-list-export-btn:not(:disabled):hover {
+            opacity: 0.8;
+        }
+
         .region-settings {
             display: none;
             background: var(--secondary);
@@ -754,6 +1066,12 @@
         .canvas-wrapper.dragover {
             border-color: var(--text-primary);
             background: rgba(255,255,255,0.02);
+        }
+
+        .canvas-wrapper.drop-success {
+            border-color: #00cc66;
+            background: rgba(0, 204, 102, 0.05);
+            transition: all 0.15s ease;
         }
 
         .drop-hint {
@@ -1469,6 +1787,33 @@
             to { transform: rotate(360deg); }
         }
 
+        .countdown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            pointer-events: none;
+        }
+
+        .countdown-number {
+            font-size: 72px;
+            font-weight: 200;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            animation: countdownPulse 0.8s ease-out;
+        }
+
+        @keyframes countdownPulse {
+            0% { transform: scale(1.5); opacity: 0; }
+            30% { opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+
         .loading-text {
             font-size: 12px;
             color: var(--text-secondary);
@@ -1573,7 +1918,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v3.6</span>
+            <span class="version">v4.1</span>
         </div>
         <div class="header-indicator">
             <span class="recording-indicator" id="recordingIndicator">● REC</span>
@@ -1646,8 +1991,19 @@
                     <button class="speed-btn" data-speed="0.75">0.75x</button>
                     <button class="speed-btn" data-speed="1">1x</button>
                 </div>
+                <div class="video-toolbar">
+                    <div class="countdown-toggle-big">
+                        <span class="toggle-label" id="countdownOffLabel">OFF</span>
+                        <div class="toggle-switch" id="countdownToggle"></div>
+                        <span class="toggle-label active" id="countdownOnLabel" data-i18n="countdown">COUNTDOWN</span>
+                    </div>
+                    <button class="video-done-btn" id="videoDoneBtn" data-i18n="markDone">DONE</button>
+                </div>
                 <div class="video-playback">
-                    <button class="play-btn" id="playPauseBtn">▶</button>
+                    <button class="play-btn" id="playPauseBtn">
+                        <span class="play-btn-icon">▶</span>
+                        <span class="play-btn-label" data-i18n="recStart">REC</span>
+                    </button>
                     <div class="timeline-container">
                         <div class="timeline" id="timeline">
                             <div class="timeline-progress" id="timelineProgress"></div>
@@ -1661,12 +2017,22 @@
                     </div>
                 </div>
                 <div class="frame-nav">
-                    <button class="frame-btn" id="frameBackBtn">◀ <span data-i18n="backFrame">-1F</span><span class="shortcut">[←]</span></button>
-                    <button class="frame-btn" id="frameForwardBtn"><span data-i18n="forwardFrame">+1F</span> ▶<span class="shortcut">[→]</span></button>
-                    <button class="frame-btn" id="undoRegionBtn"><span data-i18n="undoPosition">UNDO POS</span><span class="shortcut">[Z]</span></button>
-                    <button class="frame-btn" id="zoomOutBtnVideo">-<span class="shortcut">[Q]</span></button>
-                    <span id="zoomLevelVideo" style="font-size: 9px; color: var(--text-primary); padding: 8px;">100%</span>
-                    <button class="frame-btn" id="zoomInBtnVideo">+<span class="shortcut">[E]</span></button>
+                    <button class="frame-btn frame-btn-lg" id="frameBackBtn">
+                        <span data-i18n="frameBack">FRAME BACK</span><span class="shortcut">[&#8592;]</span>
+                    </button>
+                    <button class="frame-btn frame-btn-lg" id="frameForwardBtn">
+                        <span data-i18n="frameForward">FRAME FWD</span><span class="shortcut">[&#8594;]</span>
+                    </button>
+                    <button class="frame-btn frame-btn-sm" id="zoomOutBtnVideo">
+                        <span data-i18n="zoomOut">ZOOM -</span><span class="shortcut">[Q]</span>
+                    </button>
+                    <button class="frame-btn frame-btn-sm" id="zoomInBtnVideo">
+                        <span data-i18n="zoomIn">ZOOM +</span><span class="shortcut">[E]</span>
+                    </button>
+                    <span id="zoomLevelVideo" style="display:none;">100%</span>
+                    <button class="frame-btn frame-btn-sm" id="undoRegionBtn">
+                        <span data-i18n="resetPosition">RESET</span><span class="shortcut">[Z]</span>
+                    </button>
                 </div>
             </div>
 
@@ -1675,6 +2041,23 @@
         </div>
 
         <div class="controls-panel">
+            <!-- Video List (Video Mode Only) -->
+            <div class="video-list-section" id="videoListSection">
+                <div class="section-title">
+                    <span data-i18n="videoList">Video List</span>
+                    <span class="video-list-count" id="videoListCount"></span>
+                </div>
+                <div class="video-list-scroll" id="videoListScroll"></div>
+                <div class="video-list-actions">
+                    <button type="button" class="video-list-add-btn" id="videoListAddBtn">
+                        <span data-i18n="addVideo">+ ADD</span>
+                    </button>
+                    <button type="button" class="video-list-export-btn" id="exportAllBtn" disabled>
+                        <span data-i18n="exportAll">EXPORT ALL</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Region Settings (Video Mode Only) -->
             <div class="region-settings" id="regionSettings">
                 <div class="section-title" data-i18n="regionSettings">Region Settings</div>
@@ -1741,7 +2124,7 @@
                 </div>
             </div>
 
-            <div class="control-section">
+            <div class="control-section section-input-wrap">
                 <div class="section-title" data-i18n="input">Input</div>
                 <!-- Photo Input -->
                 <div class="file-input-area photo-input" id="fileInputArea">
@@ -1755,7 +2138,7 @@
                 <!-- Video Input -->
                 <div class="file-input-area video-input" id="videoInputArea">
                     <label class="file-input-label">
-                        <input type="file" id="videoInput" accept="video/*">
+                        <input type="file" id="videoInput" multiple accept="video/*">
                         <div class="upload-icon"></div>
                         <div class="file-input-text" data-i18n="selectVideo">SELECT VIDEO</div>
                         <div class="file-count" id="videoName"></div>
@@ -1915,6 +2298,13 @@
                 this.rotateStart = { angle: 0, mouseAngle: 0 };
                 this.isDraggingTimeline = false;
 
+                // Multi-video session management
+                this.videoSessions = [];
+                this.activeSessionIndex = -1;
+                this.maxVideoSessions = 10;
+                this._isRestoring = false;
+                this._batchExportCancelled = false;
+
                 // Animation
                 this.animationFrameId = null
 
@@ -1949,6 +2339,16 @@
                     videoIcon.classList.toggle('active', this.isVideoMode);
                     document.body.classList.toggle('video-mode', this.isVideoMode);
 
+                    // Hide mosaic type selector in video mode (only Pixelate works)
+                    const mosaicTypeWrapper = document.getElementById('mosaicType').closest('.select-wrapper');
+                    if (this.isVideoMode) {
+                        mosaicTypeWrapper.style.display = 'none';
+                        this.mosaicType = 'pixelate';
+                        document.getElementById('mosaicType').value = 'pixelate';
+                    } else {
+                        mosaicTypeWrapper.style.display = '';
+                    }
+
                     // Update drop hint text
                     const dropHint = document.getElementById('dropHint');
                     if (this.isVideoMode) {
@@ -1977,13 +2377,17 @@
                 document.getElementById('thumbnailScroll').innerHTML = '';
 
                 if (this.isVideoMode) {
-                    // Reset video state
+                    // Reset video state + clear all sessions
+                    this.stopPlaybackLoop();
+                    this.video.pause();
                     this.video.src = '';
                     this.regionPositions.clear();
                     this.regions = [];
                     this.selectedRegionIndex = -1;
                     this.currentFrameNumber = 0;
                     this.totalFrames = 0;
+                    this.videoSessions = [];
+                    this.activeSessionIndex = -1;
                     document.getElementById('videoName').textContent = '';
                     document.getElementById('currentFrame').textContent = '0';
                     document.getElementById('totalFrames').textContent = '0';
@@ -1991,6 +2395,7 @@
                     document.getElementById('totalTime').textContent = '00:00:00';
                     this.hideRegionOverlay();
                     this.updateRegionList();
+                    this.updateVideoList();
                 } else {
                     // Reset image state
                     this.images = [];
@@ -2007,6 +2412,364 @@
                 this.updateButtonStates();
             }
 
+            // ==================== MULTI-VIDEO SESSION MANAGEMENT ====================
+
+            saveCurrentVideoState() {
+                if (this.activeSessionIndex < 0 || this.activeSessionIndex >= this.videoSessions.length) return;
+                const session = this.videoSessions[this.activeSessionIndex];
+
+                // Deep clone regions
+                session.regions = this.regions.map(r => ({ ...r }));
+                session.regionIdCounter = this.regionIdCounter;
+                session.selectedRegionIndex = this.selectedRegionIndex;
+
+                // Map -> Array for serialization
+                session.regionPositions = Array.from(this.regionPositions.entries());
+                session.positionHistory = this.positionHistory.map(h => ({
+                    frameNumber: h.frameNumber,
+                    positions: h.positions.map(p => ({ ...p }))
+                }));
+
+                session.currentFrameNumber = this.currentFrameNumber;
+                session.zoomLevel = this.zoomLevel;
+                session.mosaicSize = this.mosaicSize;
+
+                // Generate thumbnail from current canvas
+                session.thumbnail = this.generateSessionThumbnail();
+            }
+
+            generateSessionThumbnail() {
+                if (!this.canvas.width || !this.canvas.height) return null;
+                const thumbCanvas = document.createElement('canvas');
+                thumbCanvas.width = 96;
+                thumbCanvas.height = 54;
+                const tCtx = thumbCanvas.getContext('2d');
+                tCtx.drawImage(this.canvas, 0, 0, 96, 54);
+                return thumbCanvas.toDataURL('image/jpeg', 0.6);
+            }
+
+            async restoreVideoState(index) {
+                if (index < 0 || index >= this.videoSessions.length) return;
+                if (index === this.activeSessionIndex) return;
+
+                // Save current state first
+                this.saveCurrentVideoState();
+
+                const session = this.videoSessions[index];
+                this.activeSessionIndex = index;
+
+                // Stop playback
+                this.stopPlaybackLoop();
+                this.video.pause();
+                this.isPlaying = false;
+                this.setPlayButtonState(false);
+
+                // Set restoring flag to prevent onVideoLoaded from reinitializing
+                this._isRestoring = true;
+
+                // Release old Blob URL and create new one
+                if (this.video.src) {
+                    URL.revokeObjectURL(this.video.src);
+                }
+                const url = URL.createObjectURL(session.file);
+                this.video.src = url;
+                this.videoFileName = session.file.name;
+                this.videoFileSize = session.file.size;
+
+                // Wait for video metadata to load
+                await new Promise(resolve => {
+                    this.video.addEventListener('loadedmetadata', resolve, { once: true });
+                });
+
+                // Wait for video to be playable
+                if (this.video.readyState < 3) {
+                    await new Promise(resolve => {
+                        this.video.addEventListener('canplay', resolve, { once: true });
+                    });
+                }
+
+                // Restore metadata
+                this.videoDuration = this.video.duration;
+                this.originalWidth = this.video.videoWidth;
+                this.originalHeight = this.video.videoHeight;
+                this.fps = session.fps;
+                this.totalFrames = Math.floor(this.videoDuration * this.fps);
+
+                // Setup canvas
+                this.canvas.width = this.originalWidth;
+                this.canvas.height = this.originalHeight;
+                this._invalidateLayoutCache();
+
+                const maxDisplayWidth = 900;
+                const maxDisplayHeight = 500;
+                const scaleX = maxDisplayWidth / this.originalWidth;
+                const scaleY = maxDisplayHeight / this.originalHeight;
+                this.baseScale = Math.min(scaleX, scaleY, 1);
+
+                this.canvas.style.display = 'block';
+                document.getElementById('dropHint').classList.add('hidden');
+
+                // Restore region data
+                this.regions = session.regions.map(r => ({ ...r }));
+                this.regionIdCounter = session.regionIdCounter;
+                this.selectedRegionIndex = session.selectedRegionIndex;
+                this.regionPositions = new Map(session.regionPositions);
+                this.positionHistory = session.positionHistory.map(h => ({
+                    frameNumber: h.frameNumber,
+                    positions: h.positions.map(p => ({ ...p }))
+                }));
+
+                this.currentFrameNumber = session.currentFrameNumber;
+                this.zoomLevel = session.zoomLevel;
+                this.mosaicSize = session.mosaicSize;
+
+                // Update UI
+                document.getElementById('totalFrames').textContent = this.totalFrames;
+                document.getElementById('totalTime').textContent = this.formatTime(this.videoDuration);
+                document.getElementById('videoName').textContent = session.file.name;
+                document.getElementById('currentSizeDisplay').textContent =
+                    `${this.originalWidth} \u00D7 ${this.originalHeight}`;
+                document.getElementById('mosaicSize').value = this.mosaicSize;
+                document.getElementById('mosaicSizeValue').textContent = this.mosaicSize;
+
+                // Seek to saved frame
+                this.video.currentTime = this.currentFrameNumber / this.fps;
+                await new Promise(resolve => { this.video.onseeked = resolve; });
+
+                this.setZoom(this.zoomLevel);
+                document.getElementById('zoomLevelVideo').textContent =
+                    Math.round(this.zoomLevel * 100) + '%';
+
+                this.renderVideoFrame();
+                this.updateRegionList();
+                if (this.selectedRegionIndex >= 0) {
+                    this.showRegionOverlay();
+                } else {
+                    this.hideRegionOverlay();
+                }
+
+                this.updateVideoList();
+
+                this._isRestoring = false;
+            }
+
+            addVideoSession(file, loadImmediately = true) {
+                if (this.videoSessions.length >= this.maxVideoSessions) {
+                    this.showStatus(this.t('maxVideosReached'), 'error');
+                    return false;
+                }
+
+                // Save current session before switching
+                if (loadImmediately && this.activeSessionIndex >= 0) {
+                    this.saveCurrentVideoState();
+                }
+
+                const session = {
+                    file: file,
+                    status: 'editing', // 'editing' | 'done' | 'exported'
+                    thumbnail: null,
+                    fps: 30,
+                    regions: [],
+                    regionIdCounter: 0,
+                    selectedRegionIndex: -1,
+                    regionPositions: [],
+                    positionHistory: [],
+                    currentFrameNumber: 0,
+                    zoomLevel: 1,
+                    mosaicSize: this.isVideoMode ? 30 : 10
+                };
+
+                this.videoSessions.push(session);
+
+                if (loadImmediately) {
+                    this.activeSessionIndex = this.videoSessions.length - 1;
+
+                    // Reset current region state for fresh session
+                    this.regions = [];
+                    this.regionIdCounter = 0;
+                    this.selectedRegionIndex = -1;
+                    this.regionPositions.clear();
+                    this.positionHistory = [];
+                    this.currentFrameNumber = 0;
+
+                    // Load the video file
+                    this.loadVideoFileInternal(file);
+                }
+                this.updateVideoList();
+                return true;
+            }
+
+            loadVideoFileInternal(file) {
+                document.getElementById('loading').style.display = 'flex';
+                document.querySelector('.loading-text').textContent = 'LOADING VIDEO';
+
+                const url = URL.createObjectURL(file);
+                this.video.src = url;
+                this.videoFileName = file.name;
+                this.videoFileSize = file.size;
+
+                document.getElementById('videoName').textContent = file.name;
+            }
+
+            removeVideoSession(index) {
+                if (index < 0 || index >= this.videoSessions.length) return;
+
+                this.videoSessions.splice(index, 1);
+
+                if (this.videoSessions.length === 0) {
+                    this.activeSessionIndex = -1;
+                    // Reset to empty state
+                    this.video.src = '';
+                    this.regions = [];
+                    this.selectedRegionIndex = -1;
+                    this.regionPositions.clear();
+                    this.positionHistory = [];
+                    this.currentFrameNumber = 0;
+                    this.canvas.style.display = 'none';
+                    document.getElementById('dropHint').classList.remove('hidden');
+                    document.getElementById('videoName').textContent = '';
+                    this.hideRegionOverlay();
+                    this.updateRegionList();
+                } else {
+                    // Adjust active index
+                    if (index === this.activeSessionIndex) {
+                        const newIndex = Math.min(index, this.videoSessions.length - 1);
+                        this.activeSessionIndex = -1; // Reset so restoreVideoState doesn't skip
+                        this.restoreVideoState(newIndex);
+                        return; // restoreVideoState calls updateVideoList
+                    } else if (index < this.activeSessionIndex) {
+                        this.activeSessionIndex--;
+                    }
+                }
+                this.updateVideoList();
+            }
+
+            updateVideoList() {
+                const scroll = document.getElementById('videoListScroll');
+                const count = document.getElementById('videoListCount');
+                const exportBtn = document.getElementById('exportAllBtn');
+
+                if (!scroll) return;
+
+                scroll.innerHTML = '';
+                count.textContent = this.videoSessions.length > 0
+                    ? `(${this.videoSessions.length})`
+                    : '';
+
+                this.videoSessions.forEach((session, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'video-list-item' + (index === this.activeSessionIndex ? ' active' : '');
+
+                    const thumb = session.thumbnail
+                        ? `<img class="video-list-thumb" src="${session.thumbnail}" alt="">`
+                        : `<div class="video-list-thumb"></div>`;
+
+                    const statusClass = session.status;
+                    const statusText = session.status.toUpperCase();
+                    const isDone = session.status === 'done' || session.status === 'exported';
+                    const doneClass = isDone ? ' is-done' : '';
+
+                    item.innerHTML = `
+                        ${thumb}
+                        <div class="video-list-info">
+                            <div class="video-list-name" title="${session.file.name}">${session.file.name}</div>
+                            <div class="video-list-status">
+                                <span class="status-dot ${statusClass}"></span>
+                                <span class="status-label">${statusText}</span>
+                            </div>
+                        </div>
+                        <button class="video-list-done-btn${doneClass}" data-index="${index}" data-done-text="${this.t('markDone')}" data-edit-text="${this.t('edit')}">${this.t('markDone')}</button>
+                        <button class="video-list-delete-btn" data-index="${index}">\u00D7</button>
+                    `;
+
+                    // Click to switch
+                    item.addEventListener('click', (e) => {
+                        if (e.target.closest('.video-list-done-btn') ||
+                            e.target.closest('.video-list-delete-btn')) return;
+                        this.restoreVideoState(index);
+                    });
+
+                    // DONE toggle + hover text swap
+                    const doneBtn = item.querySelector('.video-list-done-btn');
+                    doneBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.toggleSessionDone(index);
+                    });
+                    if (isDone) {
+                        doneBtn.addEventListener('mouseenter', () => {
+                            doneBtn.textContent = doneBtn.dataset.editText;
+                        });
+                        doneBtn.addEventListener('mouseleave', () => {
+                            doneBtn.textContent = doneBtn.dataset.doneText;
+                        });
+                    }
+
+                    // Delete
+                    item.querySelector('.video-list-delete-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.removeVideoSession(index);
+                    });
+
+                    scroll.appendChild(item);
+                });
+
+                // Smart export button text and state
+                const sessionCount = this.videoSessions.length;
+                const allDone = sessionCount > 0 &&
+                    this.videoSessions.every(s => s.status === 'done' || s.status === 'exported');
+                exportBtn.disabled = !allDone;
+                exportBtn.querySelector('span').textContent =
+                    sessionCount <= 1 ? this.t('exportVideo') : this.t('exportAll');
+                this.updateVideoDoneButton();
+            }
+
+            toggleSessionDone(index) {
+                if (index < 0 || index >= this.videoSessions.length) return;
+                const session = this.videoSessions[index];
+                session.status = session.status === 'done' ? 'editing' : 'done';
+
+                // Save current state if toggling active session
+                if (index === this.activeSessionIndex) {
+                    this.saveCurrentVideoState();
+                }
+                this.updateVideoList();
+                this.updateVideoDoneButton();
+            }
+
+            toggleCurrentVideoDone() {
+                if (this.activeSessionIndex < 0) return;
+                this.toggleSessionDone(this.activeSessionIndex);
+            }
+
+            updateVideoDoneButton() {
+                const btn = document.getElementById('videoDoneBtn');
+                if (!btn) return;
+                if (this.activeSessionIndex >= 0 && this.activeSessionIndex < this.videoSessions.length) {
+                    const isDone = this.videoSessions[this.activeSessionIndex].status === 'done' ||
+                                   this.videoSessions[this.activeSessionIndex].status === 'exported';
+                    btn.classList.toggle('is-done', isDone);
+                    btn.textContent = isDone ? this.t('edit') : this.t('markDone');
+                } else {
+                    btn.classList.remove('is-done');
+                    btn.textContent = this.t('markDone');
+                }
+            }
+
+            setPlayButtonState(playing) {
+                const btn = document.getElementById('playPauseBtn');
+                const icon = btn.querySelector('.play-btn-icon');
+                const label = btn.querySelector('.play-btn-label');
+                if (playing) {
+                    icon.textContent = '\u23F8';
+                    label.textContent = this.t('recStop');
+                    btn.classList.add('recording');
+                } else {
+                    icon.textContent = '\u25B6';
+                    label.textContent = this.t('recStart');
+                    btn.classList.remove('recording');
+                }
+            }
+
             initializeVideoControls() {
                 // Video input
                 document.getElementById('videoInput').addEventListener('change', (e) => this.loadVideo(e));
@@ -2016,6 +2779,33 @@
                         return;
                     }
                     document.getElementById('videoInput').click();
+                });
+
+                // Video list controls
+                document.getElementById('videoListAddBtn').addEventListener('click', () => {
+                    document.getElementById('videoInput').click();
+                });
+                document.getElementById('exportAllBtn').addEventListener('click', () => {
+                    if (this.videoSessions.length <= 1) {
+                        this.exportVideo();
+                    } else {
+                        this.exportAllVideos();
+                    }
+                });
+
+                // Countdown toggle (big toggle switch)
+                const countdownToggle = document.getElementById('countdownToggle');
+                countdownToggle.classList.add('on'); // Default: on
+                countdownToggle.addEventListener('click', () => {
+                    countdownToggle.classList.toggle('on');
+                    const isOn = countdownToggle.classList.contains('on');
+                    document.getElementById('countdownOnLabel').classList.toggle('active', isOn);
+                    document.getElementById('countdownOffLabel').classList.toggle('active', !isOn);
+                });
+
+                // Video Done button
+                document.getElementById('videoDoneBtn').addEventListener('click', () => {
+                    this.toggleCurrentVideoDone();
                 });
 
                 // Playback controls
@@ -2121,6 +2911,7 @@
                 e.preventDefault();
                 this.isDraggingRegion = true;
                 const overlay = document.getElementById('regionOverlay');
+                overlay.classList.add('dragging');
 
                 // Cache values at drag start
                 const canvasWrapper = document.getElementById('dropZone');
@@ -2153,6 +2944,7 @@
                 e.preventDefault();
                 e.stopPropagation();
                 this.isResizingRegion = true;
+                document.getElementById('regionOverlay').classList.add('dragging');
 
                 // Cache values for performance
                 this.cachedCanvasRect = this.canvas.getBoundingClientRect();
@@ -2227,6 +3019,7 @@
                 e.preventDefault();
                 e.stopPropagation();
                 this.isRotatingRegion = true;
+                document.getElementById('regionOverlay').classList.add('dragging');
 
                 const region = this.regions[this.selectedRegionIndex];
                 const overlay = document.getElementById('regionOverlay');
@@ -2296,6 +3089,9 @@
                 this.isDraggingRegion = false;
                 this.isResizingRegion = false;
                 this.isRotatingRegion = false;
+
+                // Remove drag feedback
+                document.getElementById('regionOverlay').classList.remove('dragging');
 
                 // Hide recording indicator
                 document.getElementById('recordingIndicator').classList.remove('active');
@@ -2410,8 +3206,8 @@
                         forwardFrame: '+1F',
                         nextFrame: '+10F',
                         exportVideo: 'EXPORT VIDEO',
-                        dropVideo: 'DROP VIDEO HERE',
-                        dropVideoSub: 'or click to select video',
+                        dropVideo: 'DROP VIDEOS HERE',
+                        dropVideoSub: 'or click to select (multiple OK)',
                         videoLoaded: 'Video loaded',
                         exporting: 'Exporting video...',
                         exportComplete: 'Export complete',
@@ -2421,7 +3217,23 @@
                         regionHeight: 'HEIGHT',
                         addRegion: '+ ADD REGION',
                         undoPosition: 'UNDO POS',
-                        mosaicSettings: 'Mosaic Settings'
+                        mosaicSettings: 'Mosaic Settings',
+                        countdown: 'COUNTDOWN',
+                        videoList: 'Video List',
+                        addVideo: '+ ADD',
+                        exportAll: 'EXPORT ALL',
+                        maxVideosReached: 'Maximum 10 videos',
+                        markDoneFirst: 'Mark videos as DONE first',
+                        markDone: 'DONE',
+                        videos: 'videos',
+                        recStart: 'REC',
+                        recStop: 'STOP',
+                        frameBack: 'FRAME BACK',
+                        frameForward: 'FRAME FWD',
+                        resetPosition: 'RESET',
+                        addedToList: 'added to list',
+                        videosAddedToList: 'videos added to list',
+                        edit: 'EDIT'
                     },
                     ja: {
                         dropHint: '画像をドロップ',
@@ -2474,7 +3286,7 @@
                         forwardFrame: '+1F',
                         nextFrame: '+10F',
                         exportVideo: '動画を書き出し',
-                        dropVideo: '動画をドロップ',
+                        dropVideo: '動画をドロップ (複数可)',
                         dropVideoSub: 'またはクリックして選択',
                         videoLoaded: '動画を読み込みました',
                         exporting: '動画を書き出し中...',
@@ -2485,7 +3297,23 @@
                         regionHeight: '高さ',
                         addRegion: '+ 領域を追加',
                         undoPosition: '位置を戻す',
-                        mosaicSettings: 'モザイク設定'
+                        mosaicSettings: 'モザイク設定',
+                        countdown: 'カウントダウン',
+                        videoList: '動画リスト',
+                        addVideo: '+ 追加',
+                        exportAll: '一括書き出し',
+                        maxVideosReached: '最大10本までです',
+                        markDoneFirst: 'DONEにしてから書き出し',
+                        markDone: '完了',
+                        videos: '本',
+                        recStart: '記録開始',
+                        recStop: '停止',
+                        frameBack: 'フレーム戻し',
+                        frameForward: 'フレーム送り',
+                        resetPosition: '初期化',
+                        addedToList: 'をリストに追加',
+                        videosAddedToList: '本の動画をリストに追加',
+                        edit: '修正'
                     }
                 };
 
@@ -2794,10 +3622,21 @@
                     const files = e.dataTransfer.files;
                     if (files.length > 0) {
                         if (this.isVideoMode) {
-                            // Handle video file drop
-                            const videoFile = Array.from(files).find(f => f.type.startsWith('video/'));
-                            if (videoFile) {
-                                this.loadVideoFile(videoFile);
+                            // Handle multiple video file drops
+                            const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
+                            if (videoFiles.length > 0) {
+                                // Load first file immediately, add rest as queued sessions
+                                videoFiles.forEach((vf, i) => this.addVideoSession(vf, i === 0));
+                                // Visual feedback: flash green border
+                                dropZone.classList.add('drop-success');
+                                const n = videoFiles.length;
+                                this.showStatus(
+                                    n === 1
+                                        ? `${videoFiles[0].name} ${this.t('addedToList')}`
+                                        : `${n} ${this.t('videosAddedToList')}`,
+                                    'success'
+                                );
+                                setTimeout(() => dropZone.classList.remove('drop-success'), 600);
                             } else {
                                 this.showStatus('Please drop a video file', 'error');
                             }
@@ -2827,15 +3666,7 @@
             }
 
             loadVideoFile(file) {
-                document.getElementById('loading').style.display = 'flex';
-                document.querySelector('.loading-text').textContent = 'LOADING VIDEO';
-
-                const url = URL.createObjectURL(file);
-                this.video.src = url;
-                this.videoFileName = file.name;
-                this.videoFileSize = file.size;
-
-                document.getElementById('videoName').textContent = file.name;
+                this.addVideoSession(file);
             }
 
             setIntensity(value) {
@@ -3816,24 +4647,17 @@
             }
 
             async loadVideo(event) {
-                const file = event.target.files[0];
-                if (!file || !file.type.startsWith('video/')) {
-                    this.showStatus('Please select a video file', 'error');
-                    return;
-                }
+                const files = event.target.files;
+                if (!files || files.length === 0) return;
 
-                document.getElementById('loading').style.display = 'flex';
-                document.querySelector('.loading-text').textContent = 'LOADING VIDEO';
-
-                const url = URL.createObjectURL(file);
-                this.video.src = url;
-                this.videoFileName = file.name;
-                this.videoFileSize = file.size;
-
-                document.getElementById('videoName').textContent = file.name;
+                const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
+                videoFiles.forEach((vf, i) => this.addVideoSession(vf, i === 0));
             }
 
             async onVideoLoaded() {
+                // Skip full initialization when restoring a session
+                if (this._isRestoring) return;
+
                 this.videoDuration = this.video.duration;
                 this.originalWidth = this.video.videoWidth;
                 this.originalHeight = this.video.videoHeight;
@@ -3843,6 +4667,11 @@
                 this.fps = await this.detectFPS();
                 this.totalFrames = Math.floor(this.videoDuration * this.fps);
                 document.getElementById('loading').style.display = 'none';
+
+                // Store fps in session
+                if (this.activeSessionIndex >= 0 && this.activeSessionIndex < this.videoSessions.length) {
+                    this.videoSessions[this.activeSessionIndex].fps = this.fps;
+                }
 
                 // Setup canvas
                 this.canvas.width = this.originalWidth;
@@ -3864,7 +4693,7 @@
                 document.getElementById('totalFrames').textContent = this.totalFrames;
                 document.getElementById('totalTime').textContent = this.formatTime(this.videoDuration);
                 document.getElementById('currentSizeDisplay').textContent =
-                    `${this.originalWidth} × ${this.originalHeight}`;
+                    `${this.originalWidth} \u00D7 ${this.originalHeight}`;
 
                 // Set initial playback speed
                 this.video.playbackRate = this.playbackSpeed;
@@ -3888,6 +4717,14 @@
                     this.selectedRegionIndex = -1;
                     this.updateRegionList();
                     this.hideRegionOverlay();
+                }
+
+                // Generate initial thumbnail
+                if (this.activeSessionIndex >= 0) {
+                    setTimeout(() => {
+                        this.saveCurrentVideoState();
+                        this.updateVideoList();
+                    }, 100);
                 }
 
                 this.showStatus(`${this.t('videoLoaded')} (${this.fps}fps)`, 'success');
@@ -4152,12 +4989,12 @@
             onVideoEnded() {
                 this.stopPlaybackLoop();
                 this.isPlaying = false;
-                document.getElementById('playPauseBtn').textContent = '▶';
+                this.setPlayButtonState(false);
                 document.getElementById('recordingIndicator').classList.remove('active');
             }
 
             togglePlayback() {
-                if (!this.video.src) return;
+                if (!this.video.src || this._countdownActive) return;
 
                 const recIndicator = document.getElementById('recordingIndicator');
 
@@ -4170,22 +5007,58 @@
                     this.stopPlaybackLoop();
                     this.video.pause();
                     this.isPlaying = false;
-                    document.getElementById('playPauseBtn').textContent = '▶';
+                    this.setPlayButtonState(false);
                     recIndicator.classList.remove('active');
                 } else {
                     // Save current frame before starting playback
                     if (this.regions.length > 0) {
                         this.saveRegionPositionForFrame();
                     }
-                    this.video.play();
-                    this.isPlaying = true;
-                    document.getElementById('playPauseBtn').textContent = '⏸';
-                    this.startPlaybackLoop();
-                    // Show REC indicator if there are regions
-                    if (this.regions.length > 0) {
-                        recIndicator.classList.add('active');
+                    if (document.getElementById('countdownToggle').classList.contains('on')) {
+                        this._startPlaybackWithCountdown(recIndicator);
+                    } else {
+                        this.video.play();
+                        this.isPlaying = true;
+                        this.setPlayButtonState(true);
+                        this.startPlaybackLoop();
+                        if (this.regions.length > 0) {
+                            recIndicator.classList.add('active');
+                        }
                     }
                 }
+            }
+
+            _startPlaybackWithCountdown(recIndicator) {
+                if (this._countdownActive) return;
+                this._countdownActive = true;
+
+                const wrapper = document.getElementById('dropZone');
+                const overlay = document.createElement('div');
+                overlay.className = 'countdown-overlay';
+                wrapper.appendChild(overlay);
+
+                const counts = [3, 2, 1];
+                let i = 0;
+
+                const showNext = () => {
+                    if (i < counts.length) {
+                        overlay.innerHTML = `<span class="countdown-number">${counts[i]}</span>`;
+                        i++;
+                        setTimeout(showNext, 800);
+                    } else {
+                        overlay.remove();
+                        this._countdownActive = false;
+                        // Start playback
+                        this.video.play();
+                        this.isPlaying = true;
+                        this.setPlayButtonState(true);
+                        this.startPlaybackLoop();
+                        if (this.regions.length > 0) {
+                            recIndicator.classList.add('active');
+                        }
+                    }
+                };
+                showNext();
             }
 
             _cachePlaybackLayout() {
@@ -4344,31 +5217,10 @@
                 this.stopPlaybackLoop();
                 this.video.pause();
                 this.isPlaying = false;
-                document.getElementById('playPauseBtn').textContent = '▶';
+                this.setPlayButtonState(false);
 
                 try {
-                    // 優先順位: WebCodecs (HWエンコード) → FFmpeg.wasm → リアルタイム録画
-                    const canUseWebCodecs = typeof VideoEncoder !== 'undefined' &&
-                        typeof Mp4Muxer !== 'undefined';
-                    const canUseFFmpeg = crossOriginIsolated &&
-                        typeof FFmpeg !== 'undefined' && FFmpeg.createFFmpeg;
-
-                    if (canUseWebCodecs) {
-                        try {
-                            await this.exportVideoWithWebCodecs();
-                        } catch (webCodecsError) {
-                            console.warn('WebCodecs failed, trying fallback:', webCodecsError);
-                            if (canUseFFmpeg) {
-                                await this.exportVideoWithFFmpeg();
-                            } else {
-                                await this.exportVideoRealtime();
-                            }
-                        }
-                    } else if (canUseFFmpeg) {
-                        await this.exportVideoWithFFmpeg();
-                    } else {
-                        await this.exportVideoRealtime();
-                    }
+                    await this.exportVideoInternal();
                 } catch (error) {
                     console.error('Export error:', error);
                     this.showStatus('Export failed: ' + error.message, 'error');
@@ -4383,6 +5235,132 @@
                         this.renderVideoFrame();
                         this.video.onseeked = null;
                     };
+                }
+            }
+
+            async exportVideoInternal() {
+                const canUseWebCodecs = typeof VideoEncoder !== 'undefined' &&
+                    typeof Mp4Muxer !== 'undefined';
+                const canUseFFmpeg = crossOriginIsolated &&
+                    typeof FFmpeg !== 'undefined' && FFmpeg.createFFmpeg;
+
+                if (canUseWebCodecs) {
+                    try {
+                        await this.exportVideoWithWebCodecs();
+                    } catch (webCodecsError) {
+                        console.warn('WebCodecs failed, trying fallback:', webCodecsError);
+                        if (canUseFFmpeg) {
+                            await this.exportVideoWithFFmpeg();
+                        } else {
+                            await this.exportVideoRealtime();
+                        }
+                    }
+                } else if (canUseFFmpeg) {
+                    await this.exportVideoWithFFmpeg();
+                } else {
+                    await this.exportVideoRealtime();
+                }
+            }
+
+            async exportAllVideos() {
+                const doneCount = this.videoSessions.filter(
+                    s => s.status === 'done'
+                ).length;
+                if (doneCount === 0) {
+                    this.showStatus(this.t('markDoneFirst'), 'error');
+                    return;
+                }
+
+                this._batchExportCancelled = false;
+
+                // Save current session state
+                this.saveCurrentVideoState();
+                const originalIndex = this.activeSessionIndex;
+
+                // Stop playback
+                this.stopPlaybackLoop();
+                this.video.pause();
+                this.isPlaying = false;
+                this.setPlayButtonState(false);
+
+                document.getElementById('loading').style.display = 'flex';
+                document.querySelector('.loading-progress-container').style.display = 'block';
+
+                let exported = 0;
+                const total = doneCount;
+
+                for (let i = 0; i < this.videoSessions.length; i++) {
+                    if (this._batchExportCancelled) break;
+
+                    const session = this.videoSessions[i];
+                    if (session.status !== 'done') continue;
+
+                    exported++;
+                    document.querySelector('.loading-text').textContent =
+                        `EXPORTING ${exported} / ${total}: ${session.file.name}`;
+                    document.querySelector('.loading-progress-fill').style.width = '0%';
+                    document.querySelector('.loading-progress-text').textContent = '0%';
+
+                    // Switch to this session's state
+                    this._isRestoring = true;
+                    if (this.video.src) URL.revokeObjectURL(this.video.src);
+                    const url = URL.createObjectURL(session.file);
+                    this.video.src = url;
+                    this.videoFileName = session.file.name;
+                    this.videoFileSize = session.file.size;
+
+                    await new Promise(resolve => {
+                        this.video.addEventListener('loadedmetadata', resolve, { once: true });
+                    });
+                    if (this.video.readyState < 3) {
+                        await new Promise(resolve => {
+                            this.video.addEventListener('canplay', resolve, { once: true });
+                        });
+                    }
+
+                    // Restore session properties
+                    this.videoDuration = this.video.duration;
+                    this.originalWidth = this.video.videoWidth;
+                    this.originalHeight = this.video.videoHeight;
+                    this.fps = session.fps;
+                    this.totalFrames = Math.floor(this.videoDuration * this.fps);
+                    this.canvas.width = this.originalWidth;
+                    this.canvas.height = this.originalHeight;
+
+                    this.regions = session.regions.map(r => ({ ...r }));
+                    this.regionIdCounter = session.regionIdCounter;
+                    this.regionPositions = new Map(session.regionPositions);
+
+                    this._isRestoring = false;
+
+                    try {
+                        await this.exportVideoInternal();
+                        session.status = 'exported';
+                    } catch (error) {
+                        console.error(`Export failed for ${session.file.name}:`, error);
+                        this.showStatus(`Export failed: ${session.file.name}`, 'error');
+                    }
+                }
+
+                document.getElementById('loading').style.display = 'none';
+                document.querySelector('.loading-progress-container').style.display = 'none';
+                document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
+
+                // Restore original session
+                this.activeSessionIndex = -1;
+                if (originalIndex >= 0 && originalIndex < this.videoSessions.length) {
+                    await this.restoreVideoState(originalIndex);
+                }
+
+                this.updateVideoList();
+
+                if (this._batchExportCancelled) {
+                    this.showStatus(`Export cancelled (${exported - 1} / ${total})`, 'error');
+                } else {
+                    this.showStatus(
+                        `${this.t('exportComplete')} (${exported} ${this.t('videos')})`,
+                        'success'
+                    );
                 }
             }
 

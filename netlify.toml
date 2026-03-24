@@ -1,6 +1,9 @@
 [build]
   publish = "."
 
+[context.branch-deploy]
+  publish = "."
+
 [[headers]]
   for = "/*"
   [headers.values]
