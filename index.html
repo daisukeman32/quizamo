@@ -8,6 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.min.js"></script>
     <!-- FFmpeg for MP4 conversion (fallback when WebCodecs unavailable) -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js" crossorigin="anonymous"></script>
+    <!-- JSZip for batch export as ZIP -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600&display=swap');
 
@@ -2438,6 +2440,27 @@
                 session.thumbnail = this.generateSessionThumbnail();
             }
 
+            generateThumbnailFromFile(file, session) {
+                const tmpVideo = document.createElement('video');
+                tmpVideo.muted = true;
+                tmpVideo.preload = 'metadata';
+                const url = URL.createObjectURL(file);
+                tmpVideo.src = url;
+                tmpVideo.addEventListener('loadeddata', () => {
+                    tmpVideo.currentTime = 0;
+                }, { once: true });
+                tmpVideo.addEventListener('seeked', () => {
+                    const c = document.createElement('canvas');
+                    c.width = 96;
+                    c.height = 54;
+                    c.getContext('2d').drawImage(tmpVideo, 0, 0, 96, 54);
+                    session.thumbnail = c.toDataURL('image/jpeg', 0.6);
+                    URL.revokeObjectURL(url);
+                    tmpVideo.src = '';
+                    this.updateVideoList();
+                }, { once: true });
+            }
+
             generateSessionThumbnail() {
                 if (!this.canvas.width || !this.canvas.height) return null;
                 const thumbCanvas = document.createElement('canvas');
@@ -2594,6 +2617,9 @@
 
                     // Load the video file
                     this.loadVideoFileInternal(file);
+                } else {
+                    // Generate thumbnail from file without loading into main player
+                    this.generateThumbnailFromFile(file, session);
                 }
                 this.updateVideoList();
                 return true;
@@ -4719,12 +4745,21 @@
                     this.hideRegionOverlay();
                 }
 
-                // Generate initial thumbnail
+                // Generate initial thumbnail after first frame is rendered
                 if (this.activeSessionIndex >= 0) {
-                    setTimeout(() => {
+                    const genThumb = () => {
+                        this.renderVideoFrame();
                         this.saveCurrentVideoState();
                         this.updateVideoList();
-                    }, 100);
+                    };
+                    // Wait for seeked event to ensure frame is drawn
+                    if (this.video.readyState >= 2) {
+                        requestAnimationFrame(genThumb);
+                    } else {
+                        this.video.addEventListener('seeked', () => {
+                            requestAnimationFrame(genThumb);
+                        }, { once: true });
+                    }
                 }
 
                 this.showStatus(`${this.t('videoLoaded')} (${this.fps}fps)`, 'success');
@@ -5272,6 +5307,7 @@
                 }
 
                 this._batchExportCancelled = false;
+                this._zipExport = new JSZip();
 
                 // Save current session state
                 this.saveCurrentVideoState();
@@ -5341,6 +5377,25 @@
                         this.showStatus(`Export failed: ${session.file.name}`, 'error');
                     }
                 }
+
+                // Generate ZIP and download
+                if (!this._batchExportCancelled && exported > 0) {
+                    document.querySelector('.loading-text').textContent = 'CREATING ZIP...';
+                    document.querySelector('.loading-progress-fill').style.width = '100%';
+                    document.querySelector('.loading-progress-text').textContent = '100%';
+
+                    const zipBlob = await this._zipExport.generateAsync({ type: 'blob' });
+                    const zipUrl = URL.createObjectURL(zipBlob);
+                    const a = document.createElement('a');
+                    a.href = zipUrl;
+                    a.download = `mosaic_export_${exported}files.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(zipUrl);
+                }
+
+                this._zipExport = null;
 
                 document.getElementById('loading').style.display = 'none';
                 document.querySelector('.loading-progress-container').style.display = 'none';
@@ -5700,11 +5755,19 @@
             }
 
             downloadBlob(blob, extension) {
+                const nameWithoutExt = this.videoFileName.substring(0, this.videoFileName.lastIndexOf('.')) || this.videoFileName;
+                const fileName = `mosaic_${nameWithoutExt}.${extension}`;
+
+                // If batch exporting, collect into ZIP instead of downloading
+                if (this._zipExport) {
+                    this._zipExport.file(fileName, blob);
+                    return;
+                }
+
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                const nameWithoutExt = this.videoFileName.substring(0, this.videoFileName.lastIndexOf('.')) || this.videoFileName;
-                a.download = `mosaic_${nameWithoutExt}.${extension}`;
+                a.download = fileName;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
