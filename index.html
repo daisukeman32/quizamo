@@ -2443,22 +2443,88 @@
             generateThumbnailFromFile(file, session) {
                 const tmpVideo = document.createElement('video');
                 tmpVideo.muted = true;
-                tmpVideo.preload = 'metadata';
+                tmpVideo.preload = 'auto';
                 const url = URL.createObjectURL(file);
                 tmpVideo.src = url;
                 tmpVideo.addEventListener('loadeddata', () => {
                     tmpVideo.currentTime = 0;
                 }, { once: true });
                 tmpVideo.addEventListener('seeked', () => {
+                    // Generate thumbnail
                     const c = document.createElement('canvas');
                     c.width = 96;
                     c.height = 54;
                     c.getContext('2d').drawImage(tmpVideo, 0, 0, 96, 54);
                     session.thumbnail = c.toDataURL('image/jpeg', 0.6);
-                    URL.revokeObjectURL(url);
-                    tmpVideo.src = '';
+
+                    // Detect FPS using the tmp video (won't interfere with main player)
+                    this.detectFPSFromVideo(tmpVideo).then(fps => {
+                        session.fps = fps;
+                        session.fpsDetected = true;
+                        console.log(`Pre-detected FPS for ${file.name}: ${fps}`);
+                        URL.revokeObjectURL(url);
+                        tmpVideo.src = '';
+                    }).catch(() => {
+                        URL.revokeObjectURL(url);
+                        tmpVideo.src = '';
+                    });
+
                     this.updateVideoList();
                 }, { once: true });
+            }
+
+            // Detect FPS from a given video element (does not use this.video)
+            async detectFPSFromVideo(video) {
+                if (video.readyState < 3) {
+                    await new Promise(r => video.addEventListener('canplay', r, { once: true }));
+                }
+
+                if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) {
+                    return 30;
+                }
+
+                return new Promise((resolve) => {
+                    const timestamps = [];
+                    const savedPlaybackRate = video.playbackRate;
+
+                    const timeout = setTimeout(() => {
+                        video.pause();
+                        video.playbackRate = savedPlaybackRate;
+                        resolve(30);
+                    }, 3000);
+
+                    video.currentTime = 0;
+                    video.addEventListener('seeked', () => {
+                        const collectFrame = (now, metadata) => {
+                            timestamps.push(metadata.mediaTime);
+
+                            if (timestamps.length >= 6) {
+                                clearTimeout(timeout);
+                                video.pause();
+                                video.playbackRate = savedPlaybackRate;
+
+                                const intervals = [];
+                                for (let i = 1; i < timestamps.length; i++) {
+                                    const diff = timestamps[i] - timestamps[i - 1];
+                                    if (diff > 0.001) intervals.push(diff);
+                                }
+
+                                let fps = 30;
+                                if (intervals.length >= 2) {
+                                    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                                    fps = Math.round(1 / avg);
+                                }
+
+                                resolve(fps);
+                            } else {
+                                video.requestVideoFrameCallback(collectFrame);
+                            }
+                        };
+
+                        video.requestVideoFrameCallback(collectFrame);
+                        video.play().catch(() => resolve(30));
+                    }, { once: true });
+                });
             }
 
             generateSessionThumbnail() {
@@ -5372,12 +5438,19 @@
 
                     // Detect FPS if not yet detected for this session
                     if (!session.fpsDetected) {
-                        this._isRestoring = false;
-                        const detectedFps = await this.detectFPS();
+                        // Use a separate tmp video to avoid interfering with export
+                        const tmpVid = document.createElement('video');
+                        tmpVid.muted = true;
+                        tmpVid.preload = 'auto';
+                        const tmpUrl = URL.createObjectURL(session.file);
+                        tmpVid.src = tmpUrl;
+                        await new Promise(r => tmpVid.addEventListener('loadeddata', r, { once: true }));
+                        const detectedFps = await this.detectFPSFromVideo(tmpVid);
+                        URL.revokeObjectURL(tmpUrl);
+                        tmpVid.src = '';
                         this.fps = detectedFps;
                         session.fps = detectedFps;
                         session.fpsDetected = true;
-                        this._isRestoring = true;
                     } else {
                         this.fps = session.fps;
                     }
