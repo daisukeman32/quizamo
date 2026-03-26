@@ -2515,7 +2515,17 @@
                 this.videoDuration = this.video.duration;
                 this.originalWidth = this.video.videoWidth;
                 this.originalHeight = this.video.videoHeight;
-                this.fps = session.fps;
+
+                // Detect FPS if not yet detected for this session
+                if (!session.fpsDetected) {
+                    this._isRestoring = false;
+                    this.fps = await this.detectFPS();
+                    session.fps = this.fps;
+                    session.fpsDetected = true;
+                    this._isRestoring = true;
+                } else {
+                    this.fps = session.fps;
+                }
                 this.totalFrames = Math.floor(this.videoDuration * this.fps);
 
                 // Setup canvas
@@ -4697,6 +4707,7 @@
                 // Store fps in session
                 if (this.activeSessionIndex >= 0 && this.activeSessionIndex < this.videoSessions.length) {
                     this.videoSessions[this.activeSessionIndex].fps = this.fps;
+                    this.videoSessions[this.activeSessionIndex].fpsDetected = true;
                 }
 
                 // Setup canvas
@@ -5359,14 +5370,13 @@
                     this.originalWidth = this.video.videoWidth;
                     this.originalHeight = this.video.videoHeight;
 
-                    // Use session.fps if it was properly detected during initial load.
-                    // Only re-detect if still at the default value (30), which means
-                    // detectFPS() never ran for this session.
-                    if (session.fps === 30) {
+                    // Detect FPS if not yet detected for this session
+                    if (!session.fpsDetected) {
                         this._isRestoring = false;
                         const detectedFps = await this.detectFPS();
                         this.fps = detectedFps;
                         session.fps = detectedFps;
+                        session.fpsDetected = true;
                         this._isRestoring = true;
                     } else {
                         this.fps = session.fps;
