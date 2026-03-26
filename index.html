@@ -4822,70 +4822,118 @@
                 this.showStatus(`${this.t('videoLoaded')} (${this.fps}fps)`, 'success');
             }
 
-            async detectFPS() {
-                const video = this.video;
+            // Detect FPS by reading MP4 binary metadata (mdhd timescale + stts sample delta)
+            // This is 100% accurate and instant - no video playback needed
+            async detectFPS(file) {
+                // Use provided file, or find from current session
+                const srcFile = file ||
+                    (this.activeSessionIndex >= 0 ? this.videoSessions[this.activeSessionIndex]?.file : null);
 
-                // Wait for video to be playable
-                if (video.readyState < 3) {
-                    await new Promise(r => video.addEventListener('canplay', r, { once: true }));
-                }
-
-                // Fallback if requestVideoFrameCallback not supported
-                if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) {
-                    console.log('requestVideoFrameCallback not supported, defaulting to 30fps');
+                if (!srcFile) {
+                    console.log('No file for FPS detection, defaulting to 30fps');
                     return 30;
                 }
 
-                return new Promise((resolve) => {
-                    const timestamps = [];
-                    const savedPlaybackRate = video.playbackRate;
+                try {
+                    const fps = await this._readFPSFromMP4(srcFile);
+                    console.log(`MP4 metadata FPS: ${fps} (from ${srcFile.name})`);
+                    return fps;
+                } catch (e) {
+                    console.warn('MP4 FPS detection failed, defaulting to 30fps:', e);
+                    return 30;
+                }
+            }
 
-                    // Timeout fallback: 3 seconds max
-                    const timeout = setTimeout(() => {
-                        video.pause();
-                        video.playbackRate = savedPlaybackRate;
-                        console.log('FPS detection timeout, defaulting to 30fps');
-                        resolve(30);
-                    }, 3000);
+            // Parse MP4 boxes to extract video track timescale and sample duration
+            async _readFPSFromMP4(file) {
+                // Read first 2MB (enough for metadata in most files)
+                const headerSize = Math.min(file.size, 2 * 1024 * 1024);
+                const buffer = await file.slice(0, headerSize).arrayBuffer();
+                const view = new DataView(buffer);
 
-                    video.currentTime = 0;
-                    video.addEventListener('seeked', () => {
-                        const collectFrame = (now, metadata) => {
-                            timestamps.push(metadata.mediaTime);
+                let videoTimescale = 0;
+                let sampleDelta = 0;
 
-                            if (timestamps.length >= 6) {
-                                clearTimeout(timeout);
-                                video.pause();
-                                video.playbackRate = savedPlaybackRate;
+                // Parse MP4 box tree to find video track's timescale and sample delta
+                const readStr = (off, len) => {
+                    let s = '';
+                    for (let i = 0; i < len; i++) s += String.fromCharCode(view.getUint8(off + i));
+                    return s;
+                };
 
-                                // Calculate fps from frame intervals
-                                const intervals = [];
-                                for (let i = 1; i < timestamps.length; i++) {
-                                    const diff = timestamps[i] - timestamps[i - 1];
-                                    if (diff > 0.001) intervals.push(diff);
-                                }
+                const containerTypes = new Set(['moov', 'trak', 'mdia', 'minf', 'stbl']);
 
-                                let fps = 30;
-                                if (intervals.length >= 2) {
-                                    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-                                    fps = Math.round(1 / avg);
-                                }
+                // Iterate trak boxes in moov to find the video track
+                const iterateBoxes = (start, end) => {
+                    const boxes = [];
+                    let offset = start;
+                    while (offset < end - 8) {
+                        const size = view.getUint32(offset);
+                        const type = readStr(offset + 4, 4);
+                        if (size < 8 || offset + size > end) break;
+                        boxes.push({ type, offset: offset + 8, end: offset + size });
+                        offset += size;
+                    }
+                    return boxes;
+                };
 
-                                console.log(`Detected FPS: ${fps} (from ${intervals.length} frame intervals)`);
+                // Find video track FPS from a trak box
+                const getFPSFromTrak = (trakStart, trakEnd) => {
+                    const mdiaBoxes = iterateBoxes(trakStart, trakEnd);
+                    const mdia = mdiaBoxes.find(b => b.type === 'mdia');
+                    if (!mdia) return null;
 
-                                // Seek back to start
-                                video.currentTime = 0;
-                                video.addEventListener('seeked', () => resolve(fps), { once: true });
-                            } else {
-                                video.requestVideoFrameCallback(collectFrame);
-                            }
-                        };
+                    const mdiaChildren = iterateBoxes(mdia.offset, mdia.end);
 
-                        video.requestVideoFrameCallback(collectFrame);
-                        video.playbackRate = 1;
-                        video.play();
-                    }, { once: true });
-                });
+                    // Check hdlr for video handler
+                    const hdlr = mdiaChildren.find(b => b.type === 'hdlr');
+                    if (!hdlr || hdlr.offset + 12 > hdlr.end) return null;
+                    const handlerType = readStr(hdlr.offset + 8, 4);
+                    if (handlerType !== 'vide') return null;
+
+                    // Get timescale from mdhd
+                    const mdhd = mdiaChildren.find(b => b.type === 'mdhd');
+                    if (!mdhd) return null;
+                    const version = view.getUint8(mdhd.offset);
+                    const timescale = version === 0
+                        ? view.getUint32(mdhd.offset + 12)
+                        : view.getUint32(mdhd.offset + 20);
+
+                    // Get sample delta from stts (in minf > stbl)
+                    const minf = mdiaChildren.find(b => b.type === 'minf');
+                    if (!minf) return null;
+                    const minfChildren = iterateBoxes(minf.offset, minf.end);
+                    const stbl = minfChildren.find(b => b.type === 'stbl');
+                    if (!stbl) return null;
+                    const stblChildren = iterateBoxes(stbl.offset, stbl.end);
+                    const stts = stblChildren.find(b => b.type === 'stts');
+                    if (!stts) return null;
+
+                    const entryCount = view.getUint32(stts.offset + 4);
+                    if (entryCount < 1) return null;
+                    const delta = view.getUint32(stts.offset + 12);
+
+                    if (timescale > 0 && delta > 0) {
+                        return Math.round(timescale / delta);
+                    }
+                    return null;
+                };
+
+                // Find moov box
+                const topBoxes = iterateBoxes(0, buffer.byteLength);
+                const moov = topBoxes.find(b => b.type === 'moov');
+                if (!moov) throw new Error('No moov box found');
+
+                // Iterate trak boxes
+                const moovChildren = iterateBoxes(moov.offset, moov.end);
+                for (const box of moovChildren) {
+                    if (box.type === 'trak') {
+                        const fps = getFPSFromTrak(box.offset, box.end);
+                        if (fps) return fps;
+                    }
+                }
+
+                throw new Error('No video track found in MP4');
             }
 
             calculateBitrate() {
@@ -5431,7 +5479,7 @@
                     this.videoDuration = this.video.duration;
                     this.originalWidth = this.video.videoWidth;
                     this.originalHeight = this.video.videoHeight;
-                    this.fps = await this.detectFPS();
+                    this.fps = await this.detectFPS(session.file);
                     this.totalFrames = Math.floor(this.videoDuration * this.fps);
                     this.canvas.width = this.originalWidth;
                     this.canvas.height = this.originalHeight;
