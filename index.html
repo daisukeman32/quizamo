@@ -4848,8 +4848,8 @@
 
             // Parse MP4 boxes to extract video track timescale and sample duration
             async _readFPSFromMP4(file) {
-                // Read first 2MB (enough for metadata in most files)
-                const headerSize = Math.min(file.size, 2 * 1024 * 1024);
+                // Read entire file (moov box can be at the end)
+                const headerSize = file.size;
                 const buffer = await file.slice(0, headerSize).arrayBuffer();
                 const view = new DataView(buffer);
 
