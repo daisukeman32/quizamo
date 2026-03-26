@@ -4830,16 +4830,18 @@
                     (this.activeSessionIndex >= 0 ? this.videoSessions[this.activeSessionIndex]?.file : null);
 
                 if (!srcFile) {
-                    console.log('No file for FPS detection, defaulting to 30fps');
+                    console.error('[FPS] No file found. activeIdx=', this.activeSessionIndex);
                     return 30;
                 }
 
+                console.log('[FPS] Starting detection for:', srcFile.name, 'size:', srcFile.size);
+
                 try {
                     const fps = await this._readFPSFromMP4(srcFile);
-                    console.log(`MP4 metadata FPS: ${fps} (from ${srcFile.name})`);
+                    console.log('[FPS] Result:', fps, 'fps from', srcFile.name);
                     return fps;
                 } catch (e) {
-                    console.warn('MP4 FPS detection failed, defaulting to 30fps:', e);
+                    console.error('[FPS] Failed:', e.message, 'for', srcFile.name);
                     return 30;
                 }
             }
