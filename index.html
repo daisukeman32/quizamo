@@ -5371,16 +5371,14 @@
                     this.originalWidth = this.video.videoWidth;
                     this.originalHeight = this.video.videoHeight;
 
-                    // Detect FPS: use this.video which is already loaded with this session's file
-                    if (!session.fpsDetected) {
-                        this._isRestoring = false;
-                        this.fps = await this.detectFPS();
-                        this._isRestoring = true;
-                        session.fps = this.fps;
-                        session.fpsDetected = true;
-                        console.log(`Batch FPS detected for ${session.file.name}: ${this.fps}`);
-                    } else {
+                    // Use detected FPS, or inherit from first detected session
+                    if (session.fpsDetected) {
                         this.fps = session.fps;
+                    } else {
+                        // Find any session with detected FPS to inherit from
+                        const refSession = this.videoSessions.find(s => s.fpsDetected);
+                        this.fps = refSession ? refSession.fps : 30;
+                        session.fps = this.fps;
                     }
 
                     this.totalFrames = Math.floor(this.videoDuration * this.fps);
