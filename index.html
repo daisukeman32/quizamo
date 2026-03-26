@@ -5416,6 +5416,7 @@
 
                     // Switch to this session's state
                     this._isRestoring = true;
+                    this._batchCurrentFile = session.file;
                     if (this.video.src) URL.revokeObjectURL(this.video.src);
                     const url = URL.createObjectURL(session.file);
                     this.video.src = url;
@@ -5492,6 +5493,7 @@
                 }
 
                 this._zipExport = null;
+                this._batchCurrentFile = null;
 
                 document.getElementById('loading').style.display = 'none';
                 document.querySelector('.loading-progress-container').style.display = 'none';
@@ -5515,8 +5517,9 @@
                 }
             }
 
-            // WebCodecs方式: ハードウェアH.264エンコード → mp4-muxerでMP4コンテナ
-            // 最速方式。GPU/ハードウェアエンコーダを使用するためリアルタイム以上の速度
+            // WebCodecs方式: video.play() + requestVideoFrameCallback で
+            // 元動画の全フレームを正確に取得し、元のタイミング(mediaTime)を
+            // そのまま維持してエンコードする。FPS推測に一切依存しない。
             async exportVideoWithWebCodecs() {
                 const progressFill = document.querySelector('.loading-progress-fill');
                 const progressText = document.querySelector('.loading-progress-text');
@@ -5530,13 +5533,47 @@
                 const encWidth = this.originalWidth % 2 === 0 ? this.originalWidth : this.originalWidth - 1;
                 const encHeight = this.originalHeight % 2 === 0 ? this.originalHeight : this.originalHeight - 1;
 
-                // H.264コーデック設定を検証
+                // Phase 1: Play video and collect all frame mediaTime values
+                // to determine exact frame count and timing
+                loadingText.textContent = 'ANALYZING FRAMES...';
+                // Get current file from batch context or active session
+                const currentFile = this._batchCurrentFile ||
+                    (this.activeSessionIndex >= 0 ? this.videoSessions[this.activeSessionIndex]?.file : null);
+                const frameTimes = await this._collectFrameTimes(currentFile);
+                const actualFrameCount = frameTimes.length;
+
+                if (actualFrameCount < 2) {
+                    throw new Error('Could not collect frames from video');
+                }
+
+                // Calculate actual FPS from collected frame times
+                const intervals = [];
+                for (let i = 1; i < frameTimes.length; i++) {
+                    const diff = frameTimes[i] - frameTimes[i - 1];
+                    if (diff > 0.0001) intervals.push(diff);
+                }
+                const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                const actualFps = Math.round(1 / avgInterval);
+
+                console.log(`Collected ${actualFrameCount} frames, actual FPS: ${actualFps}`);
+
+                // Update session fps with accurate value
+                this.fps = actualFps;
+                this.totalFrames = actualFrameCount;
+                if (this.activeSessionIndex >= 0 && this.activeSessionIndex < this.videoSessions.length) {
+                    this.videoSessions[this.activeSessionIndex].fps = actualFps;
+                    this.videoSessions[this.activeSessionIndex].fpsDetected = true;
+                }
+
+                loadingText.textContent = 'ENCODING MP4';
+
+                // H.264コーデック設定
                 const config = {
-                    codec: 'avc1.4d0028', // Main Profile, Level 4.0
+                    codec: 'avc1.4d0028',
                     width: encWidth,
                     height: encHeight,
                     bitrate: this.calculateBitrate(),
-                    framerate: this.fps,
+                    framerate: actualFps,
                 };
 
                 const support = await VideoEncoder.isConfigSupported(config);
@@ -5544,7 +5581,6 @@
                     throw new Error('H.264 encoding not supported');
                 }
 
-                // mp4-muxerでMP4コンテナを作成
                 const muxer = new Mp4Muxer.Muxer({
                     target: new Mp4Muxer.ArrayBufferTarget(),
                     video: {
@@ -5555,7 +5591,6 @@
                     fastStart: 'in-memory',
                 });
 
-                // VideoEncoderを作成（出力を直接muxerへ）
                 const encoder = new VideoEncoder({
                     output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
                     error: (e) => console.error('VideoEncoder error:', e),
@@ -5563,14 +5598,6 @@
 
                 encoder.configure(config);
 
-                // 先頭にシーク
-                this.video.currentTime = 0;
-                await new Promise(resolve => { this.video.onseeked = resolve; });
-
-                const totalFrames = Math.floor(this.videoDuration * this.fps);
-                const frameDuration = Math.round(1_000_000 / this.fps); // マイクロ秒
-
-                // エンコード用の一時キャンバス（奇数サイズ対応）
                 let encCanvas = this.canvas;
                 let encCtx = this.ctx;
                 if (encWidth !== this.originalWidth || encHeight !== this.originalHeight) {
@@ -5580,51 +5607,49 @@
                     encCtx = encCanvas.getContext('2d');
                 }
 
-                for (let i = 0; i < totalFrames; i++) {
+                // Phase 2: Seek to each collected frame time and encode
+                for (let i = 0; i < actualFrameCount; i++) {
+                    this.video.currentTime = frameTimes[i];
+                    await new Promise(resolve => { this.video.onseeked = resolve; });
+
                     this.currentFrameNumber = i;
                     this.loadRegionPositionsForFrame();
                     this.ctx.drawImage(this.video, 0, 0, this.originalWidth, this.originalHeight);
                     this.applyRegionMosaics();
 
-                    // 奇数サイズの場合は一時キャンバスにコピー
                     if (encCanvas !== this.canvas) {
                         encCtx.drawImage(this.canvas, 0, 0, encWidth, encHeight);
                     }
 
-                    // VideoFrameを作成してエンコード
+                    const timestampUs = Math.round(frameTimes[i] * 1_000_000);
+                    const durationUs = i < actualFrameCount - 1
+                        ? Math.round((frameTimes[i + 1] - frameTimes[i]) * 1_000_000)
+                        : Math.round(avgInterval * 1_000_000);
+
                     const frame = new VideoFrame(encCanvas, {
-                        timestamp: i * frameDuration,
-                        duration: frameDuration,
+                        timestamp: timestampUs,
+                        duration: durationUs,
                     });
 
-                    // 2秒ごとにキーフレーム
-                    const keyFrame = i % (this.fps * 2) === 0;
+                    const keyFrame = i % (actualFps * 2) === 0;
                     encoder.encode(frame, { keyFrame });
                     frame.close();
 
-                    // 進捗更新
-                    const progress = Math.round(((i + 1) / totalFrames) * 100);
+                    const progress = Math.round(((i + 1) / actualFrameCount) * 100);
                     progressFill.style.width = progress + '%';
                     progressText.textContent = progress + '%';
 
-                    // 次フレームへシーク
-                    if (i < totalFrames - 1) {
-                        this.video.currentTime = (i + 1) / this.fps;
-                        await new Promise(resolve => { this.video.onseeked = resolve; });
-                    }
-
-                    // エンコーダのバックプレッシャー制御
                     while (encoder.encodeQueueSize > 5) {
                         await new Promise(resolve => setTimeout(resolve, 1));
                     }
 
-                    // UIフリーズ防止
                     if (i % 10 === 0) {
                         await new Promise(resolve => setTimeout(resolve, 0));
                     }
                 }
 
-                // フラッシュ → ファイナライズ
+                console.log(`Encoded ${actualFrameCount} frames at ${actualFps}fps`);
+
                 await encoder.flush();
                 encoder.close();
                 muxer.finalize();
@@ -5636,6 +5661,61 @@
 
                 this.downloadBlob(finalBlob, 'mp4');
                 this.showStatus(this.t('exportComplete'), 'success');
+            }
+
+            // Collect all frame mediaTime values by playing a separate video element
+            // Returns array of frame times in seconds
+            // Uses a tmp video to avoid interfering with the main player
+            // file: optional File object; if omitted, uses current session's file
+            async _collectFrameTimes(file) {
+                const srcFile = file ||
+                    (this.activeSessionIndex >= 0 ? this.videoSessions[this.activeSessionIndex]?.file : null);
+                if (!srcFile) return [];
+
+                const tmpVideo = document.createElement('video');
+                tmpVideo.muted = true;
+                tmpVideo.preload = 'auto';
+                const url = URL.createObjectURL(srcFile);
+                tmpVideo.src = url;
+
+                await new Promise(r => tmpVideo.addEventListener('loadeddata', r, { once: true }));
+
+                const duration = tmpVideo.duration;
+
+                return new Promise((resolve) => {
+                    const times = [];
+
+                    tmpVideo.currentTime = 0;
+                    tmpVideo.addEventListener('seeked', () => {
+                        const onFrame = (now, metadata) => {
+                            times.push(metadata.mediaTime);
+
+                            if (metadata.mediaTime >= duration - 0.01 || tmpVideo.ended) {
+                                tmpVideo.pause();
+                                URL.revokeObjectURL(url);
+                                tmpVideo.src = '';
+                                resolve(times);
+                                return;
+                            }
+
+                            tmpVideo.requestVideoFrameCallback(onFrame);
+                        };
+
+                        tmpVideo.requestVideoFrameCallback(onFrame);
+                        tmpVideo.play().catch(() => {
+                            URL.revokeObjectURL(url);
+                            resolve(times);
+                        });
+                    }, { once: true });
+
+                    // Safety timeout
+                    setTimeout(() => {
+                        tmpVideo.pause();
+                        URL.revokeObjectURL(url);
+                        tmpVideo.src = '';
+                        resolve(times.length > 0 ? times : []);
+                    }, 60000);
+                });
             }
 
             // FFmpeg方式: フレームをJPEGキャプチャ → 正しいfpsでMP4エンコード
