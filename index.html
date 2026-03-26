@@ -5359,12 +5359,18 @@
                     this.originalWidth = this.video.videoWidth;
                     this.originalHeight = this.video.videoHeight;
 
-                    // Re-detect FPS for accurate export (session.fps may be stale default)
-                    this._isRestoring = false;
-                    const detectedFps = await this.detectFPS();
-                    this.fps = detectedFps;
-                    session.fps = detectedFps;
-                    this._isRestoring = true;
+                    // Use session.fps if it was properly detected during initial load.
+                    // Only re-detect if still at the default value (30), which means
+                    // detectFPS() never ran for this session.
+                    if (session.fps === 30) {
+                        this._isRestoring = false;
+                        const detectedFps = await this.detectFPS();
+                        this.fps = detectedFps;
+                        session.fps = detectedFps;
+                        this._isRestoring = true;
+                    } else {
+                        this.fps = session.fps;
+                    }
 
                     this.totalFrames = Math.floor(this.videoDuration * this.fps);
                     this.canvas.width = this.originalWidth;
