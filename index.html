@@ -5358,7 +5358,14 @@
                     this.videoDuration = this.video.duration;
                     this.originalWidth = this.video.videoWidth;
                     this.originalHeight = this.video.videoHeight;
-                    this.fps = session.fps;
+
+                    // Re-detect FPS for accurate export (session.fps may be stale default)
+                    this._isRestoring = false;
+                    const detectedFps = await this.detectFPS();
+                    this.fps = detectedFps;
+                    session.fps = detectedFps;
+                    this._isRestoring = true;
+
                     this.totalFrames = Math.floor(this.videoDuration * this.fps);
                     this.canvas.width = this.originalWidth;
                     this.canvas.height = this.originalHeight;
