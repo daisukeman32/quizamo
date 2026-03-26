@@ -2603,6 +2603,7 @@
                 const prevRegions = prevSession
                     ? (this.regions.length > 0 ? this.regions : prevSession.regions)
                     : [];
+                console.log('addVideoSession: prevRegions=', prevRegions.length, 'this.regions=', this.regions.length, 'activeIdx=', this.activeSessionIndex, 'loadImm=', loadImmediately);
 
                 // Copy regions with same shape/type/intensity/size, position will be set after video loads
                 const inheritedRegions = prevRegions.map((r, i) => ({
