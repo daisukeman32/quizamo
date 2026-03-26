@@ -2542,7 +2542,24 @@
                 this.canvas.style.display = 'block';
                 document.getElementById('dropHint').classList.add('hidden');
 
-                // Restore region data
+                // Restore region data; if empty, inherit from previous session
+                if (session.regions.length === 0 && this.regions.length > 0) {
+                    // Inherit regions from the session we're leaving
+                    session.regions = this.regions.map((r, i) => ({
+                        id: i,
+                        shape: r.shape,
+                        type: r.type,
+                        intensity: r.intensity,
+                        x: r.x,
+                        y: r.y,
+                        width: r.width,
+                        height: r.height,
+                        rotation: r.rotation || 0
+                    }));
+                    session.regionIdCounter = session.regions.length;
+                    session.selectedRegionIndex = 0;
+                    session.mosaicSize = this.mosaicSize;
+                }
                 this.regions = session.regions.map(r => ({ ...r }));
                 this.regionIdCounter = session.regionIdCounter;
                 this.selectedRegionIndex = session.selectedRegionIndex;
@@ -2597,40 +2614,19 @@
                     this.saveCurrentVideoState();
                 }
 
-                // Inherit region settings from current session
-                const prevSession = this.activeSessionIndex >= 0
-                    ? this.videoSessions[this.activeSessionIndex] : null;
-                const prevRegions = prevSession
-                    ? (this.regions.length > 0 ? this.regions : prevSession.regions)
-                    : [];
-                console.log('addVideoSession: prevRegions=', prevRegions.length, 'this.regions=', this.regions.length, 'activeIdx=', this.activeSessionIndex, 'loadImm=', loadImmediately);
-
-                // Copy regions with same shape/type/intensity/size, position will be set after video loads
-                const inheritedRegions = prevRegions.map((r, i) => ({
-                    id: i,
-                    shape: r.shape,
-                    type: r.type,
-                    intensity: r.intensity,
-                    x: r.x,
-                    y: r.y,
-                    width: r.width,
-                    height: r.height,
-                    rotation: r.rotation || 0
-                }));
-
                 const session = {
                     file: file,
                     status: 'editing',
                     thumbnail: null,
                     fps: 30,
-                    regions: inheritedRegions,
-                    regionIdCounter: inheritedRegions.length,
-                    selectedRegionIndex: inheritedRegions.length > 0 ? 0 : -1,
+                    regions: [],
+                    regionIdCounter: 0,
+                    selectedRegionIndex: -1,
                     regionPositions: [],
                     positionHistory: [],
                     currentFrameNumber: 0,
                     zoomLevel: 1,
-                    mosaicSize: prevSession ? (this.mosaicSize || prevSession.mosaicSize) : (this.isVideoMode ? 30 : 10)
+                    mosaicSize: this.isVideoMode ? 30 : 10
                 };
 
                 this.videoSessions.push(session);
@@ -2638,10 +2634,10 @@
                 if (loadImmediately) {
                     this.activeSessionIndex = this.videoSessions.length - 1;
 
-                    // Inherit region state from previous session
-                    this.regions = inheritedRegions.map(r => ({ ...r }));
-                    this.regionIdCounter = inheritedRegions.length;
-                    this.selectedRegionIndex = inheritedRegions.length > 0 ? 0 : -1;
+                    // Reset current region state for fresh session
+                    this.regions = [];
+                    this.regionIdCounter = 0;
+                    this.selectedRegionIndex = -1;
                     this.regionPositions.clear();
                     this.positionHistory = [];
                     this.currentFrameNumber = 0;
