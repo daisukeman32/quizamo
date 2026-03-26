@@ -4691,8 +4691,8 @@
             }
 
             async onVideoLoaded() {
-                // Skip full initialization when restoring a session
-                if (this._isRestoring) return;
+                // Skip full initialization when restoring a session or batch exporting
+                if (this._isRestoring || this._isBatchExporting) return;
 
                 this.videoDuration = this.video.duration;
                 this.originalWidth = this.video.videoWidth;
@@ -5318,6 +5318,7 @@
                 }
 
                 this._batchExportCancelled = false;
+                this._isBatchExporting = true;
                 this._zipExport = new JSZip();
 
                 // Save current session state
@@ -5407,7 +5408,7 @@
                 }
 
                 this._zipExport = null;
-                this._batchCurrentFile = null;
+                this._isBatchExporting = false;
 
                 document.getElementById('loading').style.display = 'none';
                 document.querySelector('.loading-progress-container').style.display = 'none';
