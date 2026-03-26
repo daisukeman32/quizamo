@@ -5348,15 +5348,15 @@
                     document.querySelector('.loading-progress-fill').style.width = '0%';
                     document.querySelector('.loading-progress-text').textContent = '0%';
 
-                    // Switch to this session's state
-                    this._isRestoring = true;
-                    this._batchCurrentFile = session.file;
+                    // Load video exactly the same way as single export:
+                    // 1. Load video  2. detectFPS  3. export
                     if (this.video.src) URL.revokeObjectURL(this.video.src);
                     const url = URL.createObjectURL(session.file);
                     this.video.src = url;
                     this.videoFileName = session.file.name;
                     this.videoFileSize = session.file.size;
 
+                    // Wait for video to be fully ready (same as initial load)
                     await new Promise(resolve => {
                         this.video.addEventListener('loadedmetadata', resolve, { once: true });
                     });
@@ -5366,30 +5366,19 @@
                         });
                     }
 
-                    // Restore session properties
+                    // Same init as onVideoLoaded
                     this.videoDuration = this.video.duration;
                     this.originalWidth = this.video.videoWidth;
                     this.originalHeight = this.video.videoHeight;
-
-                    // Use detected FPS, or inherit from first detected session
-                    if (session.fpsDetected) {
-                        this.fps = session.fps;
-                    } else {
-                        // Find any session with detected FPS to inherit from
-                        const refSession = this.videoSessions.find(s => s.fpsDetected);
-                        this.fps = refSession ? refSession.fps : 30;
-                        session.fps = this.fps;
-                    }
-
+                    this.fps = await this.detectFPS();
                     this.totalFrames = Math.floor(this.videoDuration * this.fps);
                     this.canvas.width = this.originalWidth;
                     this.canvas.height = this.originalHeight;
 
+                    // Restore region data for this session
                     this.regions = session.regions.map(r => ({ ...r }));
                     this.regionIdCounter = session.regionIdCounter;
                     this.regionPositions = new Map(session.regionPositions);
-
-                    this._isRestoring = false;
 
                     try {
                         await this.exportVideoInternal();
