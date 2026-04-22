@@ -2621,6 +2621,11 @@
 
                 this.renderVideoFrame();
                 this.updateRegionList();
+
+                // Wait for DOM layout to update before positioning overlay
+                await new Promise(r => requestAnimationFrame(r));
+                this._invalidateLayoutCache();
+
                 if (this.selectedRegionIndex >= 0) {
                     this.showRegionOverlay();
                 } else {
@@ -3705,7 +3710,8 @@
                     if (files.length > 0) {
                         if (this.isVideoMode) {
                             // Handle multiple video file drops
-                            const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
+                            const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'))
+                                .sort((a, b) => a.name.localeCompare(b.name));
                             if (videoFiles.length > 0) {
                                 // Load first file immediately, add rest as queued sessions
                                 videoFiles.forEach((vf, i) => this.addVideoSession(vf, i === 0));
@@ -4732,7 +4738,8 @@
                 const files = event.target.files;
                 if (!files || files.length === 0) return;
 
-                const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
+                const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'))
+                    .sort((a, b) => a.name.localeCompare(b.name));
                 videoFiles.forEach((vf, i) => this.addVideoSession(vf, i === 0));
             }
 
