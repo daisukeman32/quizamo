@@ -723,7 +723,15 @@
             padding: 6px 8px;
             cursor: pointer;
             border: 1px solid transparent;
-            transition: border-color 0.15s;
+            transition: border-color 0.15s, opacity 0.15s;
+        }
+
+        .video-list-item.dragging {
+            opacity: 0.3;
+        }
+
+        .video-list-item.drag-over {
+            border-top: 2px solid var(--accent);
         }
 
         .video-list-item:hover {
@@ -2738,6 +2746,22 @@
                 this.updateVideoList();
             }
 
+            reorderVideoSession(fromIndex, toIndex) {
+                if (fromIndex === toIndex) return;
+                const [moved] = this.videoSessions.splice(fromIndex, 1);
+                this.videoSessions.splice(toIndex, 0, moved);
+
+                // Update activeSessionIndex to follow the active session
+                if (this.activeSessionIndex === fromIndex) {
+                    this.activeSessionIndex = toIndex;
+                } else if (fromIndex < this.activeSessionIndex && toIndex >= this.activeSessionIndex) {
+                    this.activeSessionIndex--;
+                } else if (fromIndex > this.activeSessionIndex && toIndex <= this.activeSessionIndex) {
+                    this.activeSessionIndex++;
+                }
+                this.updateVideoList();
+            }
+
             updateVideoList() {
                 const scroll = document.getElementById('videoListScroll');
                 const count = document.getElementById('videoListCount');
@@ -2753,6 +2777,8 @@
                 this.videoSessions.forEach((session, index) => {
                     const item = document.createElement('div');
                     item.className = 'video-list-item' + (index === this.activeSessionIndex ? ' active' : '');
+                    item.draggable = true;
+                    item.dataset.index = index;
 
                     const thumb = session.thumbnail
                         ? `<img class="video-list-thumb" src="${session.thumbnail}" alt="">`
@@ -2802,6 +2828,33 @@
                     item.querySelector('.video-list-delete-btn').addEventListener('click', (e) => {
                         e.stopPropagation();
                         this.removeVideoSession(index);
+                    });
+
+                    // Drag & drop reorder
+                    item.addEventListener('dragstart', (e) => {
+                        this._dragSessionIndex = index;
+                        item.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+                    item.addEventListener('dragend', () => {
+                        item.classList.remove('dragging');
+                        scroll.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                        this._dragSessionIndex = null;
+                    });
+                    item.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        scroll.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                        if (this._dragSessionIndex !== null && this._dragSessionIndex !== index) {
+                            item.classList.add('drag-over');
+                        }
+                    });
+                    item.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        item.classList.remove('drag-over');
+                        if (this._dragSessionIndex === null || this._dragSessionIndex === index) return;
+                        this.reorderVideoSession(this._dragSessionIndex, index);
+                        this._dragSessionIndex = null;
                     });
 
                     scroll.appendChild(item);
