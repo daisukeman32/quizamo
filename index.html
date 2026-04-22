@@ -4763,21 +4763,21 @@
             }
 
             undoRegionPosition() {
-                if (this.positionHistory.length === 0) {
-                    this.showStatus('Nothing to undo', 'error');
+                const count = this.regionPositions.size;
+                if (count === 0) {
+                    this.showStatus('Nothing to reset', 'error');
                     return;
                 }
 
-                const lastState = this.positionHistory.pop();
-                this.regionPositions.set(lastState.frameNumber, lastState.positions);
+                // Clear all frame position records and history
+                this.regionPositions.clear();
+                this.positionHistory = [];
 
-                // If current frame matches, restore positions
-                const currentFrame = Math.round(this.video.currentTime * this.fps);
-                if (currentFrame === lastState.frameNumber) {
-                    this.restoreRegionPositions(lastState.positions);
-                }
+                // Re-render current frame without saved positions
+                this.renderVideoFrame();
+                this.showRegionOverlay();
 
-                this.showStatus('Position undone', 'success');
+                this.showStatus(`Reset: ${count} frame records cleared`, 'success');
             }
 
             restoreRegionPositions(positions) {
