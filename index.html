@@ -2573,16 +2573,23 @@
 
                 // Restore region data; if empty, inherit from previous session
                 if (session.regions.length === 0 && this.regions.length > 0) {
-                    // Inherit regions from the session we're leaving
+                    // Scale regions from previous video dimensions to new video dimensions
+                    const prevW = this.canvas.width;   // previous video's canvas size
+                    const prevH = this.canvas.height;
+                    const newW = this.originalWidth;    // new video's native size
+                    const newH = this.originalHeight;
+                    const sx = newW / prevW;
+                    const sy = newH / prevH;
+
                     session.regions = this.regions.map((r, i) => ({
                         id: i,
                         shape: r.shape,
                         type: r.type,
                         intensity: r.intensity,
-                        x: r.x,
-                        y: r.y,
-                        width: r.width,
-                        height: r.height,
+                        x: r.x * sx,
+                        y: r.y * sy,
+                        width: r.width * sx,
+                        height: r.height * sy,
                         rotation: r.rotation || 0
                     }));
                     session.regionIdCounter = session.regions.length;
