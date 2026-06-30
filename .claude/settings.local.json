@@ -4,7 +4,13 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(start \"\" \"C:\\\\ClaudeCode\\\\12_クイザモ\\\\web-mosaic.html\")"
+      "Bash(start \"\" \"C:\\\\ClaudeCode\\\\12_クイザモ\\\\web-mosaic.html\")",
+      "Bash(open:*)",
+      "Bash(git -C /Users/daisuke/AI_CODE/01_TOOL/02_quizamo log --oneline -5)",
+      "Bash(git -C /Users/daisuke/AI_CODE/01_TOOL/02_quizamo diff --stat)",
+      "Bash(git -C /Users/daisuke/AI_CODE/01_TOOL/02_quizamo log --format='%an <%ae>' -1)",
+      "Bash(git -C /Users/daisuke/AI_CODE/01_TOOL/02_quizamo -c user.name=\"daisukeman32\" -c user.email=\"daisukeman32@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nv3.6: 回転時のモザイクブロック描画修正\n\n回転した領域でモザイクブロック自体が回転してしまう不具合を修正。\nクリップ形状のみ回転し、モザイクパターンは常に水平・垂直を保つように変更。\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C /Users/daisuke/AI_CODE/01_TOOL/02_quizamo push)"
     ]
   }
 }

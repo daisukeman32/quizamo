@@ -19,3 +19,9 @@ QUIZAMO_Mosaic_Tool_v*.exe
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Local Netlify folder
+.netlify
+
+# Local dev server
+.dev_server.py

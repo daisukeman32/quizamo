@@ -1951,7 +1951,7 @@
         <div>
             <span class="logo">QUIZAMO</span>
             <span class="logo-sub">WEB</span>
-            <span class="version">v4.2</span>
+            <span class="version">v4.3</span>
         </div>
         <div class="header-indicator">
             <span class="recording-indicator" id="recordingIndicator">● REC</span>
@@ -5428,12 +5428,17 @@
                 this.isPlaying = false;
                 this.setPlayButtonState(false);
 
+                // Remember source file so each export method can mux the original audio back in
+                this._currentExportFile =
+                    (this.activeSessionIndex >= 0 ? this.videoSessions[this.activeSessionIndex]?.file : null);
+
                 try {
                     await this.exportVideoInternal();
                 } catch (error) {
                     console.error('Export error:', error);
                     this.showStatus('Export failed: ' + error.message, 'error');
                 } finally {
+                    this._currentExportFile = null;
                     document.getElementById('loading').style.display = 'none';
                     document.querySelector('.loading-progress-container').style.display = 'none';
                     document.querySelector('.loading-progress-bar').classList.remove('indeterminate');
@@ -5558,6 +5563,7 @@
                     this.regionIdCounter = session.regionIdCounter;
                     this.regionPositions = new Map(session.regionPositions);
 
+                    this._currentExportFile = session.file;
                     try {
                         await this.exportVideoInternal();
                         session.status = 'exported';
@@ -5568,6 +5574,8 @@
                     } catch (error) {
                         console.error(`Export failed for ${session.file.name}:`, error);
                         this.showStatus(`Export failed: ${session.file.name}`, 'error');
+                    } finally {
+                        this._currentExportFile = null;
                     }
                 }
 
@@ -5729,10 +5737,13 @@
                 encoder.close();
                 muxer.finalize();
 
-                const finalBlob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+                const silentBlob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
 
                 progressFill.style.width = '100%';
                 progressText.textContent = '100%';
+
+                // 元動画の音声トラックを後付けmux（FFmpegで -c:a copy）
+                const finalBlob = await this._muxAudioIntoVideo(silentBlob, this._currentExportFile);
 
                 this.downloadBlob(finalBlob, 'mp4');
                 this.showStatus(this.t('exportComplete'), 'success');
@@ -5741,28 +5752,23 @@
             // FFmpeg方式: フレームをJPEGキャプチャ → 正しいfpsでMP4エンコード
             // MediaRecorderを使わないため、タイミングが正確でスローモーションにならない（WebCodecs非対応時のフォールバック）
             async exportVideoWithFFmpeg() {
-                const { createFFmpeg } = FFmpeg;
                 const progressFill = document.querySelector('.loading-progress-fill');
                 const progressText = document.querySelector('.loading-progress-text');
                 const loadingText = document.querySelector('.loading-text');
                 const progressBar = document.querySelector('.loading-progress-bar');
 
-                // Phase 1: FFmpegロード
-                loadingText.textContent = 'Loading FFmpeg...';
-                progressBar.classList.add('indeterminate');
+                // Phase 1: FFmpegロード（バッチ時はインスタンス再利用）
+                const ffmpeg = await this._ensureFFmpegLoaded(loadingText, progressBar);
 
                 let lastProgress = 0;
-                const ffmpeg = createFFmpeg({
-                    log: true,
-                    progress: ({ ratio }) => {
-                        if (ratio && !isNaN(ratio) && ratio > 0) {
-                            progressBar.classList.remove('indeterminate');
-                            const pct = Math.round(ratio * 100);
-                            if (pct > lastProgress) {
-                                lastProgress = pct;
-                                progressFill.style.width = pct + '%';
-                                progressText.textContent = pct + '%';
-                            }
+                ffmpeg.setProgress(({ ratio }) => {
+                    if (ratio && !isNaN(ratio) && ratio > 0) {
+                        progressBar.classList.remove('indeterminate');
+                        const pct = Math.round(ratio * 100);
+                        if (pct > lastProgress) {
+                            lastProgress = pct;
+                            progressFill.style.width = pct + '%';
+                            progressText.textContent = pct + '%';
                         }
                     }
                 });
@@ -5784,9 +5790,6 @@
                         }
                     }
                 });
-
-                await ffmpeg.load();
-                progressBar.classList.remove('indeterminate');
 
                 // Phase 2: フレームキャプチャ → JPEG → FFmpeg仮想FSに書き込み
                 loadingText.textContent = 'CAPTURING FRAMES (1/2)';
@@ -5836,16 +5839,61 @@
                 progressText.textContent = '0%';
                 lastProgress = 0;
 
-                await ffmpeg.run(
-                    '-framerate', String(this.fps),
-                    '-i', 'f%05d.jpg',
-                    '-c:v', 'libx264',
-                    '-preset', 'ultrafast',
-                    '-crf', '23',
-                    '-pix_fmt', 'yuv420p',
-                    '-movflags', '+faststart',
-                    'output.mp4'
-                );
+                // 元動画から音声を引き継ぐ準備（音声があればFFmpegに2番目の入力として渡す）
+                const srcFile = this._currentExportFile;
+                let hasAudioSrc = false;
+                let srcInputName = null;
+                if (srcFile) {
+                    try {
+                        hasAudioSrc = await this._videoFileHasAudio(srcFile);
+                    } catch (e) { hasAudioSrc = false; }
+                    if (hasAudioSrc) {
+                        const m = srcFile.name.match(/\.[^.]+$/);
+                        const ext = m ? m[0].toLowerCase() : '.mp4';
+                        srcInputName = `src${ext}`;
+                        const srcBuf = new Uint8Array(await srcFile.arrayBuffer());
+                        ffmpeg.FS('writeFile', srcInputName, srcBuf);
+                    }
+                }
+
+                const runEncode = async (audioCodec) => {
+                    const args = [
+                        '-framerate', String(this.fps),
+                        '-i', 'f%05d.jpg'
+                    ];
+                    if (srcInputName) args.push('-i', srcInputName);
+                    args.push(
+                        '-map', '0:v:0',
+                        '-c:v', 'libx264',
+                        '-preset', 'ultrafast',
+                        '-crf', '23',
+                        '-pix_fmt', 'yuv420p'
+                    );
+                    if (srcInputName) {
+                        args.push('-map', '1:a:0?');
+                        if (audioCodec === 'copy') {
+                            args.push('-c:a', 'copy');
+                        } else {
+                            args.push('-c:a', 'aac', '-b:a', '192k');
+                        }
+                        args.push('-shortest');
+                    }
+                    args.push('-movflags', '+faststart', 'output.mp4');
+                    await ffmpeg.run(...args);
+                };
+
+                // 音声は -c:a copy を最優先（無劣化）→ 失敗時のみ AAC 再エンコへ
+                try {
+                    await runEncode(srcInputName ? 'copy' : null);
+                } catch (e) {
+                    if (srcInputName) {
+                        console.warn('audio copy failed, retry with AAC', e);
+                        try { ffmpeg.FS('unlink', 'output.mp4'); } catch (ee) { /* ignore */ }
+                        await runEncode('aac');
+                    } else {
+                        throw e;
+                    }
+                }
 
                 // 出力ファイル読み取り
                 const data = ffmpeg.FS('readFile', 'output.mp4');
@@ -5854,13 +5902,16 @@
                 progressFill.style.width = '100%';
                 progressText.textContent = '100%';
 
-                // クリーンアップ: FFmpeg FSからフレームファイルを削除
+                // クリーンアップ: FFmpeg FSからフレームファイルと入力動画を削除
                 for (let i = 0; i < totalFrames; i++) {
                     try {
                         ffmpeg.FS('unlink', `f${String(i).padStart(5, '0')}.jpg`);
                     } catch (e) { /* ignore */ }
                 }
                 try { ffmpeg.FS('unlink', 'output.mp4'); } catch (e) { /* ignore */ }
+                if (srcInputName) {
+                    try { ffmpeg.FS('unlink', srcInputName); } catch (e) { /* ignore */ }
+                }
 
                 this.downloadBlob(finalBlob, 'mp4');
                 this.showStatus(this.t('exportComplete'), 'success');
@@ -5876,7 +5927,29 @@
 
                 // MediaRecorderセットアップ
                 const stream = this.canvas.captureStream(this.fps);
-                let mimeType = 'video/webm;codecs=vp9';
+
+                // 元動画の音声トラックを合成（captureStream対応ブラウザのみ）
+                let capturedAudioTracks = [];
+                const wasMuted = this.video.muted;
+                try {
+                    if (typeof this.video.captureStream === 'function') {
+                        const srcStream = this.video.captureStream();
+                        capturedAudioTracks = srcStream.getAudioTracks();
+                        capturedAudioTracks.forEach(t => stream.addTrack(t));
+                    } else if (typeof this.video.mozCaptureStream === 'function') {
+                        const srcStream = this.video.mozCaptureStream();
+                        capturedAudioTracks = srcStream.getAudioTracks();
+                        capturedAudioTracks.forEach(t => stream.addTrack(t));
+                    }
+                } catch (e) {
+                    console.warn('audio capture failed:', e);
+                }
+                // 録画中の再生音をスピーカーに出さない（captureStreamの音声トラックには影響しない）
+                this.video.muted = true;
+
+                let mimeType = 'video/webm;codecs=vp9,opus';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8,opus';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp9';
                 if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
                 if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
 
@@ -5938,8 +6011,10 @@
 
                 const webmBlob = await recordingComplete;
 
-                // 再生速度を元に戻す
+                // 再生速度・mute状態を元に戻し、合成した音声トラックを停止
                 this.video.playbackRate = this.playbackSpeed;
+                this.video.muted = wasMuted;
+                capturedAudioTracks.forEach(t => { try { t.stop(); } catch (e) { /* ignore */ } });
 
                 this.downloadBlob(webmBlob, 'webm');
 
@@ -5947,6 +6022,157 @@
                     this.showStatus('WebM出力（MP4変換にはHTTPSサーバーが必要）', 'success');
                 } else {
                     this.showStatus('WebM出力完了', 'success');
+                }
+            }
+
+            // 音声トラック有無の判定。検出できない環境では true を返して後段のmuxに任せる
+            async _videoFileHasAudio(file) {
+                return new Promise((resolve) => {
+                    const v = document.createElement('video');
+                    v.muted = true;
+                    v.preload = 'metadata';
+                    const url = URL.createObjectURL(file);
+                    v.src = url;
+                    const done = (result) => {
+                        URL.revokeObjectURL(url);
+                        v.removeAttribute('src');
+                        resolve(result);
+                    };
+                    v.onloadedmetadata = () => {
+                        if (v.audioTracks && typeof v.audioTracks.length === 'number') {
+                            return done(v.audioTracks.length > 0);
+                        }
+                        if (typeof v.mozHasAudio === 'boolean') {
+                            return done(v.mozHasAudio);
+                        }
+                        // captureStream で音声トラック有無を確認（Chrome/Edge）
+                        try {
+                            if (typeof v.captureStream === 'function') {
+                                const stream = v.captureStream();
+                                const hasAudio = stream.getAudioTracks().length > 0;
+                                stream.getTracks().forEach(t => t.stop());
+                                return done(hasAudio);
+                            }
+                        } catch (e) { /* fall through */ }
+                        // 判定不能 → 「音声あり」と仮定（mux時にFFmpegが空ストリームを優雅に処理）
+                        done(true);
+                    };
+                    v.onerror = () => done(false);
+                });
+            }
+
+            // FFmpegが既にロード済みかを返す（_ffmpegInstance をプロセス全体で再利用）
+            async _ensureFFmpegLoaded(loadingTextEl, progressBarEl) {
+                if (this._ffmpegInstance && this._ffmpegInstance.isLoaded()) {
+                    return this._ffmpegInstance;
+                }
+                if (!crossOriginIsolated || typeof FFmpeg === 'undefined' || !FFmpeg.createFFmpeg) {
+                    throw new Error('FFmpeg unavailable');
+                }
+                if (loadingTextEl) loadingTextEl.textContent = 'Loading FFmpeg...';
+                if (progressBarEl) progressBarEl.classList.add('indeterminate');
+                const { createFFmpeg } = FFmpeg;
+                const ffmpeg = createFFmpeg({ log: true });
+                await ffmpeg.load();
+                if (progressBarEl) progressBarEl.classList.remove('indeterminate');
+                this._ffmpegInstance = ffmpeg;
+                return ffmpeg;
+            }
+
+            // 無音MP4 と 元動画から音声を抜き出してMP4にmux（音声無劣化、-c:a copy）
+            // FFmpeg利用不可・元動画無音時は元の無音Blobを返す
+            async _muxAudioIntoVideo(silentVideoBlob, originalFile) {
+                if (!originalFile) return silentVideoBlob;
+
+                // 音声有無の事前チェック
+                let hasAudio = true;
+                try {
+                    hasAudio = await this._videoFileHasAudio(originalFile);
+                } catch (e) { /* assume true */ }
+                if (!hasAudio) return silentVideoBlob;
+
+                // FFmpegが利用不可なら諦めて無音を返す（メイン処理は止めない）
+                if (!crossOriginIsolated || typeof FFmpeg === 'undefined' || !FFmpeg.createFFmpeg) {
+                    console.warn('FFmpeg unavailable; exporting without audio');
+                    return silentVideoBlob;
+                }
+
+                const loadingText = document.querySelector('.loading-text');
+                const progressBar = document.querySelector('.loading-progress-bar');
+                const prevText = loadingText ? loadingText.textContent : '';
+
+                try {
+                    const ffmpeg = await this._ensureFFmpegLoaded(loadingText, progressBar);
+                    if (loadingText) loadingText.textContent = 'MERGING AUDIO';
+                    if (progressBar) progressBar.classList.add('indeterminate');
+
+                    // 元動画の拡張子を保持（FFmpegはコンテナ判定に使う）
+                    const m = originalFile.name.match(/\.[^.]+$/);
+                    const ext = m ? m[0].toLowerCase() : '.mp4';
+                    const inputName = `src${ext}`;
+                    const silentName = 'silent.mp4';
+                    const outName = 'out.mp4';
+
+                    const silentBuf = new Uint8Array(await silentVideoBlob.arrayBuffer());
+                    const srcBuf = new Uint8Array(await originalFile.arrayBuffer());
+                    ffmpeg.FS('writeFile', silentName, silentBuf);
+                    ffmpeg.FS('writeFile', inputName, srcBuf);
+
+                    // まず -c:a copy を試す（無劣化）。失敗したら AAC 再エンコへフォールバック
+                    let muxOk = false;
+                    try {
+                        await ffmpeg.run(
+                            '-i', silentName,
+                            '-i', inputName,
+                            '-map', '0:v:0',
+                            '-map', '1:a:0?',
+                            '-c:v', 'copy',
+                            '-c:a', 'copy',
+                            '-shortest',
+                            '-movflags', '+faststart',
+                            outName
+                        );
+                        muxOk = true;
+                    } catch (e1) {
+                        console.warn('audio copy failed, retrying with AAC re-encode', e1);
+                        try { ffmpeg.FS('unlink', outName); } catch (e) { /* ignore */ }
+                        try {
+                            await ffmpeg.run(
+                                '-i', silentName,
+                                '-i', inputName,
+                                '-map', '0:v:0',
+                                '-map', '1:a:0?',
+                                '-c:v', 'copy',
+                                '-c:a', 'aac',
+                                '-b:a', '192k',
+                                '-shortest',
+                                '-movflags', '+faststart',
+                                outName
+                            );
+                            muxOk = true;
+                        } catch (e2) {
+                            console.warn('audio mux failed, exporting silent video', e2);
+                        }
+                    }
+
+                    let finalBlob = silentVideoBlob;
+                    if (muxOk) {
+                        const data = ffmpeg.FS('readFile', outName);
+                        finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
+                    }
+
+                    // FS クリーンアップ
+                    try { ffmpeg.FS('unlink', silentName); } catch (e) { /* ignore */ }
+                    try { ffmpeg.FS('unlink', inputName); } catch (e) { /* ignore */ }
+                    try { ffmpeg.FS('unlink', outName); } catch (e) { /* ignore */ }
+
+                    return finalBlob;
+                } catch (e) {
+                    console.warn('audio merge skipped:', e);
+                    return silentVideoBlob;
+                } finally {
+                    if (loadingText && prevText) loadingText.textContent = prevText;
+                    if (progressBar) progressBar.classList.remove('indeterminate');
                 }
             }
 
